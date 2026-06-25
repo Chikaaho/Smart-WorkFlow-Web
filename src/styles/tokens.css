@@ -1,0 +1,17 @@
+/**
+ * 品牌色单一数据源（决策文档 · 外壳刀 §1）。
+ * 将来换色只改 --sw-color-primary 这一行，其余各档由 color-mix 运行时派生，
+ * 与 Element Plus 自身派生算法一致（light-i = i×10% 白色混入，dark-2 = 20% 黑色）。
+ * color-mix 现代浏览器（2023+）均支持；若某目标浏览器不支持，退路是用硬编码色值覆盖。
+ */
+:root {
+  --sw-color-primary: #7e306b; /* 唯一品牌色源 */
+
+  --el-color-primary: var(--sw-color-primary);
+  --el-color-primary-light-3: color-mix(in srgb, var(--sw-color-primary) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--sw-color-primary) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--sw-color-primary) 30%, white);
+  --el-color-primary-light-8: color-mix(in srgb, var(--sw-color-primary) 20%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--sw-color-primary) 10%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--sw-color-primary) 80%, black);
+}
