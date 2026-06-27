@@ -11,7 +11,7 @@ const client: AxiosInstance = axios.create({
 })
 
 // /auth/login、/auth/refresh 自身的 401/未授权响应不走全局跳登录处理，
-// 否则登录页的“账密错误”提示会被误判成会话失效并清态跳转。
+// 否则登录页的"账密错误"提示会被误判成会话失效并清态跳转。
 const AUTH_ENDPOINTS_EXCLUDED_FROM_401_HANDLING = ['/auth/login', '/auth/refresh']
 
 type UnauthorizedHandler = (redirectPath: string) => void
@@ -23,6 +23,19 @@ let unauthorizedHandler: UnauthorizedHandler | null = null
  */
 export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
   unauthorizedHandler = handler
+}
+
+/** 后端业务层错误(HTTP 200 + code≠0),上层按 code 映射可读提示。 */
+export class ApiError extends Error {
+  readonly code: number
+  readonly msg: string
+
+  constructor(code: number, msg: string) {
+    super(msg)
+    this.name = 'ApiError'
+    this.code = code
+    this.msg = msg
+  }
 }
 
 client.interceptors.request.use((config) => {
@@ -50,6 +63,31 @@ client.interceptors.response.use(
 )
 
 export async function request<T>(config: Parameters<AxiosInstance['request']>[0]): Promise<T> {
+  // ── dev-only 全 mock 开关 ──
+  // 双重 gate + 动态 import 保证 tree-shake 安全：prod 构建时 import.meta.env.DEV 恒为 false，
+  // 整个 if 块被 DCE，foundation/mock/ 不出现在 dist 中。
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
+    const { dispatchMock } = await import('@/foundation/mock/index')
+    const mockResult = await dispatchMock<T>(
+      config.method ?? 'GET',
+      config.url ?? '',
+      client.defaults.baseURL ?? '/api',
+      (config.params as Record<string, string>) ?? {},
+      config.data,
+    )
+    if (mockResult !== undefined) {
+      // mock 响应流经与真实请求相同的错误归一管线（ApiError）
+      if (mockResult.code !== 0) {
+        throw new ApiError(mockResult.code, mockResult.message)
+      }
+      return mockResult.data as T
+    }
+    // fallthrough: 无匹配 handler → 走真实 axios
+  }
+
   const response = await client.request<ApiResponse<T>>(config)
+  if (response.data.code !== 0) {
+    throw new ApiError(response.data.code, response.data.message)
+  }
   return response.data.data
 }

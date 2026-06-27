@@ -10,7 +10,22 @@ const routes: RouteRecordRaw[] = [
     name: ROOT_LAYOUT_NAME,
     component: () => import('@/layouts/BasicLayout.vue'),
     redirect: '/system',
-    children: [],
+    // 参数化的低代码表单页作为静态子路由挂在根布局下,
+    // 直达 URL 可进,受 authGuard 保护,无需纳入后端菜单树。
+    children: [
+      {
+        path: 'lowcode/form-render/:formKey',
+        name: 'lowcode-form-render',
+        component: () => import('@/modules/lowcode/views/LowcodeFormRender.vue'),
+        meta: { title: '表单渲染' },
+      },
+      {
+        path: 'lowcode/form-list/:formKey',
+        name: 'lowcode-form-list',
+        component: () => import('@/modules/lowcode/views/LowcodeFormList.vue'),
+        meta: { title: '提交记录' },
+      },
+    ],
   },
   {
     path: '/login',

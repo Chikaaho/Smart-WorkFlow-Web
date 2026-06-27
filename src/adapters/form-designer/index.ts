@@ -1,16 +1,251 @@
-import type { FormSchema } from '@/contracts/form-schema'
+import type { FormSchema, FormSchemaField, FieldType, TableSubField } from '@/contracts/form-schema'
 
 /**
- * form-create（@form-create/designer + @form-create/element-ui）的防腐层。
- * 第三方库的原生 schema/API 只允许在本文件内出现，业务层只认下方导出的我方契约。
+ * form-designer 防腐层。
+ * 后端 definition JSON 和 form-create 原生 schema 只允许在本文件内出现;
+ * 业务层只认 @/contracts/form-schema 导出的稳定契约。
  */
 
-export function toFormSchema(_native: unknown): FormSchema {
-  throw new Error('not implemented') // TODO(skeleton): 接入 @form-create 原生 schema 转换
+const KNOWN_FIELD_TYPES = new Set<string>([
+  'TEXT',
+  'RICH_TEXT',
+  'NUMBER',
+  'DATE',
+  'BOOL',
+  'DICT',
+  'REFERENCE',
+  'TABLE',
+])
+
+interface RawFieldDef {
+  name: string
+  type: string
+  required?: boolean
+  label?: string
+  dictType?: string
+  subFields?: Array<{ name: string; type: string }>
 }
 
-export function fromFormSchema(_schema: FormSchema): unknown {
-  throw new Error('not implemented') // TODO(skeleton): 转换为 @form-create 原生 schema
+interface RawDefinition {
+  title: string
+  fields: RawFieldDef[]
+}
+
+function mapRawField(raw: RawFieldDef): FormSchemaField | null {
+  if (!KNOWN_FIELD_TYPES.has(raw.type)) {
+    console.warn(`[form-designer] unknown field type, skipping: "${raw.name}" (type: ${raw.type})`)
+    return null
+  }
+
+  const base = {
+    name: raw.name,
+    ...(raw.label !== undefined ? { label: raw.label } : {}),
+    required: raw.required ?? false,
+  }
+
+  const type = raw.type as FieldType
+
+  if (type === 'DICT') {
+    return { ...base, type, dictType: raw.dictType ?? '' }
+  }
+
+  if (type === 'TABLE') {
+    const subFields: TableSubField[] = (raw.subFields ?? [])
+      .filter((sf) => KNOWN_FIELD_TYPES.has(sf.type))
+      .map((sf) => ({ name: sf.name, type: sf.type as FieldType }))
+    return { ...base, type, subFields }
+  }
+
+  return { ...base, type }
+}
+
+/** 将后端裸 definition JSON 字符串解析并映射为前端稳定的 FormSchema。 */
+export function parseDefinition(rawJson: string): FormSchema {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawJson)
+  } catch {
+    throw new Error('[form-designer] failed to parse definition JSON: invalid format')
+  }
+
+  const raw = parsed as RawDefinition
+  if (typeof raw?.title !== 'string' || !Array.isArray(raw?.fields)) {
+    throw new Error('[form-designer] failed to parse definition JSON: unexpected shape')
+  }
+
+  const fields = raw.fields.flatMap<FormSchemaField>((f) => {
+    const mapped = mapRawField(f)
+    return mapped !== null ? [mapped] : []
+  })
+
+  return { title: raw.title, fields }
+}
+
+/**
+ * seam: FormSchema → form-create 原生 rule 列表。
+ * 接口形状已钉死,实现待接入 @form-create/element-ui 渲染引擎。
+ * 后续渲染页对着本接口写,不得绕过直引 @form-create。
+ *
+ * 每条 field 生成一条 form-create rule（plain object），类型映射：
+ *   TEXT      → input
+ *   RICH_TEXT → input + props.type=textarea（TODO: 接入富文本编辑器）
+ *   NUMBER    → inputNumber
+ *   DATE      → datePicker（提交 ISO 格式字符串 YYYY-MM-DD）
+ *   BOOL      → switch
+ *   DICT      → select + options:[] + __dictType__ 元数据
+ *   REFERENCE → input + 占位文案（TODO: 接入关联选择器）
+ *   TABLE     → group + children（子表）
+ */
+export function toFormCreateRule(schema: FormSchema): unknown[] {
+  const rules: unknown[] = []
+
+  for (const field of schema.fields) {
+    const rule = mapFieldToCreateRule(field)
+    if (rule !== null) {
+      rules.push(rule)
+    }
+  }
+
+  return rules
+}
+
+/* ================================================================
+ * 字段映射（模块私有）
+ * ================================================================ */
+
+/**
+ * 将单个 FormSchemaField 映射为 form-create 规则对象。
+ * 返回 null 表示跳过（未知 type），调用方负责过滤。
+ */
+function mapFieldToCreateRule(field: FormSchemaField): Record<string, unknown> | null {
+  // 运行时防御：兼容非契约数据（如测试中 as any 传入的非法 type）
+  if (!KNOWN_FIELD_TYPES.has(field.type)) {
+    console.warn(
+      `[form-designer] unknown field type, skipping toFormCreateRule: "${field.name}" (type: ${field.type})`,
+    )
+    return null
+  }
+
+  const label = field.label ?? field.name
+
+  const rule: Record<string, unknown> = {
+    type: '',
+    title: label,
+    field: field.name,
+    value: '',
+  }
+
+  if (field.required) {
+    // required → form-create 内置必填校验（前端 UX 即时提示不作拦死提交）
+    rule.required = true
+  }
+
+  switch (field.type) {
+    case 'TEXT': {
+      rule.type = 'input'
+      break
+    }
+
+    case 'RICH_TEXT': {
+      // TODO(rich-text): 接入富文本编辑器，当前降级为多行 textarea
+      rule.type = 'input'
+      rule.props = { type: 'textarea', rows: 4 }
+      break
+    }
+
+    case 'NUMBER': {
+      rule.type = 'inputNumber'
+      break
+    }
+
+    case 'DATE': {
+      rule.type = 'datePicker'
+      rule.props = { valueFormat: 'YYYY-MM-DD' }
+      // 提交值为 ISO 格式字符串（YYYY-MM-DD）以对齐后端
+      break
+    }
+
+    case 'BOOL': {
+      rule.type = 'switch'
+      rule.value = false
+      break
+    }
+
+    case 'DICT': {
+      rule.type = 'select'
+      rule.options = []
+      rule.props = { clearable: true }
+      // __dictType__ 标记供渲染层在运行时通过 useDict 加载字典项并填充 options
+      ;(rule as Record<string, unknown>).__dictType__ = field.dictType
+      break
+    }
+
+    case 'REFERENCE': {
+      // TODO(reference-picker): 接入关联选择器，当前降级为文本输入占位
+      rule.type = 'input'
+      rule.props = { placeholder: '引用类型（填入目标 recordId）' }
+      break
+    }
+
+    case 'TABLE': {
+      rule.type = 'group'
+      rule.value = []
+      rule.children = field.subFields.map(mapSubFieldToCreateRule)
+      break
+    }
+  }
+
+  return rule
+}
+
+/**
+ * TABLE 子字段 → form-create 子规则。
+ *
+ * SubField 只携带 name/type，缺少 dictType 等元数据，因此 DICT / REFERENCE / TABLE
+ * 子类型均回退为普通文本输入。
+ */
+function mapSubFieldToCreateRule(sf: TableSubField): Record<string, unknown> {
+  const rule: Record<string, unknown> = {
+    type: 'input',
+    title: sf.name,
+    field: sf.name,
+    value: '',
+  }
+
+  switch (sf.type) {
+    case 'TEXT':
+      // 默认 input 即可
+      break
+
+    case 'RICH_TEXT':
+      rule.props = { type: 'textarea', rows: 3 }
+      break
+
+    case 'NUMBER':
+      rule.type = 'inputNumber'
+      break
+
+    case 'DATE':
+      rule.type = 'datePicker'
+      rule.props = { valueFormat: 'YYYY-MM-DD' }
+      break
+
+    case 'BOOL':
+      rule.type = 'switch'
+      rule.value = false
+      break
+
+    case 'DICT':
+    case 'REFERENCE':
+    case 'TABLE':
+      // DICT: 子字段无 dictType 信息，回退文本输入
+      // REFERENCE: 子字段无关联上下文，回退文本输入
+      // TABLE: 不支持嵌套子表，回退文本输入
+      // TODO(sub-field): 子字段 dictType/关联选择/嵌套子表支持
+      break
+  }
+
+  return rule
 }
 
 export function mountFormDesigner(_container: HTMLElement, _schema?: FormSchema): void {
