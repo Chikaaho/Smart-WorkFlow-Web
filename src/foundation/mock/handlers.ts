@@ -26,6 +26,8 @@
 import type { MockHandler, MockMethod } from './index'
 import {
   MOCK_DICT_DATA,
+  MOCK_SESSION_DATA,
+  MOCK_MENU_TREE,
   DEMO_FORM_KEY,
   MOCK_DEMO_FORM_DEFINITION,
   MOCK_DEMO_SUBMISSIONS,
@@ -50,6 +52,30 @@ export const mockRegistrations: MockRegistration[] = [
       code: 0,
       message: 'ok',
       data: 'mock-access-token-' + Date.now(),
+    }),
+  },
+
+  // ── 当前用户会话 ──────────────────────────────────────────
+  // GET /api/system/auth/me → SessionDTO
+  {
+    method: 'GET',
+    pattern: '/api/system/auth/me',
+    handler: () => ({
+      code: 0,
+      message: 'ok',
+      data: MOCK_SESSION_DATA,
+    }),
+  },
+
+  // ── 当前用户菜单 ─────────────────────────────────────────
+  // GET /api/system/auth/menus → MenuNode[]
+  {
+    method: 'GET',
+    pattern: '/api/system/auth/menus',
+    handler: () => ({
+      code: 0,
+      message: 'ok',
+      data: MOCK_MENU_TREE,
     }),
   },
 

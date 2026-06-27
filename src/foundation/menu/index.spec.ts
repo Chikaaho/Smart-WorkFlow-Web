@@ -1,29 +1,29 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { MenuType } from '@/contracts/menu'
-import { buildRoutesFromMenu, loadMenu } from './index'
+import { MenuType, type MenuNode } from '@/contracts/menu'
+import { MOCK_MENU_TREE } from '@/foundation/mock/seeds'
+import { buildRoutesFromMenu } from './index'
+
+const mockMenu = MOCK_MENU_TREE as MenuNode[]
 
 describe('foundation/menu', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('resolves real on-disk components for every placeholder route', async () => {
-    const menu = await loadMenu()
-    const routes = buildRoutesFromMenu(menu)
+  it('resolves real on-disk components for every mock menu route', async () => {
+    const routes = buildRoutesFromMenu(mockMenu)
     expect(routes.length).toBeGreaterThan(0)
     expect(routes.every((route) => typeof route.component === 'function')).toBe(true)
   })
 
-  it('placeholder menu carries at least one two-level nesting (directory + children)', async () => {
-    const menu = await loadMenu()
-    const directory = menu.find((node) => node.menuType === MenuType.DIRECTORY)
+  it('mock menu tree carries at least one two-level nesting (directory + children)', () => {
+    const directory = mockMenu.find((node) => node.menuType === MenuType.DIRECTORY)
     expect(directory).toBeDefined()
     expect(directory!.children?.length).toBeGreaterThan(0)
   })
 
-  it('flattens the placeholder directory: the directory owns no route, its children do', async () => {
-    const menu = await loadMenu()
-    const paths = buildRoutesFromMenu(menu).map((route) => route.path)
+  it('flattens directory nodes: directory itself owns no route, children do', () => {
+    const paths = buildRoutesFromMenu(mockMenu).map((route) => route.path)
     // 'lowcode' 目录本身不成路由，其子项 'lowcode/overview' / 'lowcode/form' 各自成路由。
     expect(paths).not.toContain('lowcode')
     expect(paths).toContain('lowcode/overview')
@@ -58,7 +58,7 @@ describe('foundation/menu', () => {
     expect(warn).toHaveBeenCalledTimes(1)
   })
 
-  it('flattens directory nodes: directory itself owns no route, children do', () => {
+  it('flattens directory nodes: directory itself owns no route, children do (unit)', () => {
     const routes = buildRoutesFromMenu([
       {
         id: 'd',

@@ -1,23 +1,63 @@
 import type { Session } from '@/contracts/session'
-import { getCurrentUsername } from '@/foundation/auth/token'
+import { request } from '@/foundation/request'
+
+// ─── 后端响应 DTO ──────────────────────────────────────────
+
+/** GET /system/auth/me 返回的 user 字段形状。 */
+interface SessionUserDTO {
+  id: number
+  username: string
+  displayName: string
+  deptId: number
+  tenantId: number
+  avatar: string | null
+}
+
+/** GET /system/auth/me 返回的顶层形状。 */
+interface SessionDTO {
+  user: SessionUserDTO
+  permissions: string[]
+  roles: string[]
+  superAdmin: boolean
+}
+
+// ─── Adapter ────────────────────────────────────────────────
 
 /**
- * getInfo（用户 + 权限码 + 角色 + 超管布尔）端点尚不存在，见决策文档 v2 §0/§6。
- * 占位实现：user 取登录时已知的最小信息（用户名），permissions/roles 留空、superAdmin 留 false。
- * 真端点落地后只需替换本函数函数体，下游（store/permission）形状不变，零改动点亮。
+ * 后端 DTO → 前端 Session 契约映射。
+ * 数组转 Set、数字 id 转字符串、null avatar 转 undefined，
+ * 不让后端形状泄漏进业务层（§2 防腐层）。
  */
-export async function loadSession(): Promise<Session> {
-  const username = getCurrentUsername() ?? 'unknown'
+function mapSession(dto: SessionDTO): Session {
   return {
     user: {
-      id: 'unknown',
-      username,
-      displayName: username,
-      deptId: null,
-      tenantId: null,
+      id: String(dto.user.id),
+      username: dto.user.username,
+      displayName: dto.user.displayName,
+      deptId: dto.user.deptId != null ? String(dto.user.deptId) : null,
+      tenantId: dto.user.tenantId != null ? String(dto.user.tenantId) : null,
+      avatar: dto.user.avatar ?? undefined,
     },
-    permissions: new Set<string>(),
-    roles: new Set<string>(),
-    superAdmin: false,
+    permissions: new Set(dto.permissions ?? []),
+    roles: new Set(dto.roles ?? []),
+    superAdmin: dto.superAdmin,
   }
+}
+
+// 为单测导出（纯函数，无副作用）
+export { mapSession }
+
+// ─── 公开 API ──────────────────────────────────────────────
+
+/**
+ * 加载当前用户会话。
+ * - pnpm dev:mock 模式：请求被 mock 调度器拦截，返回假数据；
+ * - pnpm dev/prod 模式：请求穿透到后端 GET /system/auth/me 真端点。
+ */
+export async function loadSession(): Promise<Session> {
+  const dto = await request<SessionDTO>({
+    method: 'GET',
+    url: '/system/auth/me',
+  })
+  return mapSession(dto)
 }
