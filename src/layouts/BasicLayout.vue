@@ -12,12 +12,15 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
 
 <template>
   <el-container class="basic-layout">
-    <el-aside class="basic-layout__aside" :width="collapsed ? '64px' : '220px'">
+    <el-aside
+      class="basic-layout__aside"
+      :width="collapsed ? 'var(--sw-layout-aside-width-collapsed)' : 'var(--sw-layout-aside-width)'"
+    >
       <AppLogo :collapse="collapsed" />
       <AppSidebar class="basic-layout__menu" :collapse="collapsed" />
     </el-aside>
     <el-container>
-      <el-header class="basic-layout__header" height="56px">
+      <el-header class="basic-layout__header" :height="'var(--sw-layout-header-height)'">
         <AppTopbar />
       </el-header>
       <el-main class="basic-layout__content">
@@ -45,7 +48,7 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
 .basic-layout__header {
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: 0 var(--sw-layout-header-padding-x);
   border-bottom: 1px solid var(--el-border-color-light);
 }
 .basic-layout__content {

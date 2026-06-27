@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     BlankPage: typeof import('./../components/BlankPage.vue')['default']
+    DynamicField: typeof import('./../components/DynamicField.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAside: typeof import('element-plus/es')['ElAside']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
@@ -20,6 +21,7 @@ declare module 'vue' {
     ElButton: typeof import('element-plus/es')['ElButton']
     ElContainer: typeof import('element-plus/es')['ElContainer']
     ElDatePicker: typeof import('element-plus/es')['ElDatePicker']
+    ElDialog: typeof import('element-plus/es')['ElDialog']
     ElDropdown: typeof import('element-plus/es')['ElDropdown']
     ElDropdownItem: typeof import('element-plus/es')['ElDropdownItem']
     ElDropdownMenu: typeof import('element-plus/es')['ElDropdownMenu']
@@ -33,13 +35,29 @@ declare module 'vue' {
     ElMain: typeof import('element-plus/es')['ElMain']
     ElMenu: typeof import('element-plus/es')['ElMenu']
     ElMenuItem: typeof import('element-plus/es')['ElMenuItem']
+    ElOption: typeof import('element-plus/es')['ElOption']
     ElPagination: typeof import('element-plus/es')['ElPagination']
+    ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSkeleton: typeof import('element-plus/es')['ElSkeleton']
     ElSubMenu: typeof import('element-plus/es')['ElSubMenu']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTable: typeof import('element-plus/es')['ElTable']
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
+    ElTag: typeof import('element-plus/es')['ElTag']
+    FormActions: typeof import('./../components/page-layout/FormActions.vue')['default']
+    FormGrid: typeof import('./../components/page-layout/FormGrid.vue')['default']
+    FormSection: typeof import('./../components/page-layout/FormSection.vue')['default']
+    ListEmpty: typeof import('./../components/page-layout/ListEmpty.vue')['default']
+    ListFilterBar: typeof import('./../components/page-layout/ListFilterBar.vue')['default']
+    ListPagination: typeof import('./../components/page-layout/ListPagination.vue')['default']
+    ListTable: typeof import('./../components/page-layout/ListTable.vue')['default']
+    ListToolbar: typeof import('./../components/page-layout/ListToolbar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    StandardFormTemplate: typeof import('./../components/page-layout/StandardFormTemplate.vue')['default']
+    StandardListTemplate: typeof import('./../components/page-layout/StandardListTemplate.vue')['default']
+  }
+  export interface GlobalDirectives {
+    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }
