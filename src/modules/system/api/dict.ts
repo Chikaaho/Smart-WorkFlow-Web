@@ -51,7 +51,7 @@ export async function pageDictTypes(
 }
 
 /** GET /system/dict/type/{id} */
-export async function getDictType(id: number): Promise<SysDictType> {
+export async function getDictType(id: string): Promise<SysDictType> {
   return request<SysDictType>({
     method: 'GET',
     url: `/system/dict/type/${id}`,
@@ -59,8 +59,8 @@ export async function getDictType(id: number): Promise<SysDictType> {
 }
 
 /** POST /system/dict/type (body SysDictType) → R<Long> */
-export async function createDictType(data: SysDictType): Promise<number> {
-  return request<number>({
+export async function createDictType(data: SysDictType): Promise<string> {
+  return request<string>({
     method: 'POST',
     url: '/system/dict/type',
     data,
@@ -77,7 +77,7 @@ export async function updateDictType(data: SysDictType): Promise<void> {
 }
 
 /** DELETE /system/dict/type/{id} → R<Void> */
-export async function deleteDictType(id: number): Promise<void> {
+export async function deleteDictType(id: string): Promise<void> {
   return request<void>({
     method: 'DELETE',
     url: `/system/dict/type/${id}`,
@@ -103,7 +103,7 @@ export async function pageDictData(
 }
 
 /** GET /system/dict/data/{id} */
-export async function getDictData(id: number): Promise<SysDictData> {
+export async function getDictData(id: string): Promise<SysDictData> {
   return request<SysDictData>({
     method: 'GET',
     url: `/system/dict/data/${id}`,
@@ -111,8 +111,8 @@ export async function getDictData(id: number): Promise<SysDictData> {
 }
 
 /** POST /system/dict/data (body SysDictData) → R<Long> */
-export async function createDictData(data: SysDictData): Promise<number> {
-  return request<number>({
+export async function createDictData(data: SysDictData): Promise<string> {
+  return request<string>({
     method: 'POST',
     url: '/system/dict/data',
     data,
@@ -129,7 +129,7 @@ export async function updateDictData(data: SysDictData): Promise<void> {
 }
 
 /** DELETE /system/dict/data/{id} → R<Void> */
-export async function deleteDictData(id: number): Promise<void> {
+export async function deleteDictData(id: string): Promise<void> {
   return request<void>({
     method: 'DELETE',
     url: `/system/dict/data/${id}`,

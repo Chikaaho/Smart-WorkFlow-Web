@@ -1,6 +1,20 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { authGuard, clearDynamicRoutes, ROOT_LAYOUT_NAME } from './guard'
 import { setUnauthorizedHandler } from '@/foundation/request'
+import { findFirstLeafPath } from '@/foundation/menu'
+import { useMenuStore } from '@/stores/menu'
+
+/**
+ * 解析登录后默认落地的第一个可访问叶子。
+ * 从菜单 store（已由守卫装载）取整棵过滤后菜单树，DFS 找首个可落地 MENU 节点；
+ * 取不到时兜底 /404，避免空菜单用户卡在空白根路由。
+ * 复用的 findFirstLeafPath 与目录 redirect 逻辑同源（单一实现）。
+ */
+export function resolveDefaultRedirect(): string {
+  const menu = useMenuStore().menu
+  const firstLeaf = findFirstLeafPath(menu)
+  return firstLeaf ?? '/404'
+}
 
 // 只保留常量路由：登录、错误页、根布局。7 个业务模块的路由由 router/guard.ts
 // 在会话确立后经 loadMenu() 占位载荷动态 addRoute，不在此静态聚合（决策文档 v2 §4）。
@@ -9,7 +23,9 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     name: ROOT_LAYOUT_NAME,
     component: () => import('@/layouts/BasicLayout.vue'),
-    redirect: '/system',
+    // 默认落地页 redirect 不在路由定义层处理：Vue Router 的 redirect 在 beforeEach 之前
+    // 解析，此时菜单 store 为空（冷启动未登录），必然回退 /404，导致用户看不到登录页。
+    // 实际落地逻辑移入 router/guard.ts 在动态路由构建完成后执行。
     // 参数化的低代码表单页作为静态子路由挂在根布局下,
     // 直达 URL 可进,受 authGuard 保护,无需纳入后端菜单树。
     children: [

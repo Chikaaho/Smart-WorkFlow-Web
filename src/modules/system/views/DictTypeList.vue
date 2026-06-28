@@ -102,7 +102,7 @@ const isEmpty = computed(() => !loading.value && !errorMsg.value && list.value.l
 
 const dialogVisible = ref(false)
 const dialogTitle = computed(() => (editingId.value ? '编辑字典类型' : '新建字典类型'))
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formError = ref('')
 

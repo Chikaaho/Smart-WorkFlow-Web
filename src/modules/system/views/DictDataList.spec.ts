@@ -112,8 +112,8 @@ describe('DictDataList', () => {
 
   it('deleteDictData can be called', async () => {
     vi.mocked(deleteDictData).mockResolvedValue(undefined)
-    await deleteDictData(1)
-    expect(deleteDictData).toHaveBeenCalledWith(1)
+    await deleteDictData('1')
+    expect(deleteDictData).toHaveBeenCalledWith('1')
   })
 
   // ─── 返回导航 ───

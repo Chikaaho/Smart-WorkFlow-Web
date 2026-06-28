@@ -27,7 +27,7 @@ describe('modules/system/api/dict — 字典类型 5 个', () => {
 
   it('pageDictTypes: POST /system/dict/type/page with params + body, adapts records→list', async () => {
     mockRequest.mockResolvedValueOnce({
-      records: [{ id: 1, name: '性别', code: 'gender', status: 1 }],
+      records: [{ id: '1', name: '性别', code: 'gender', status: 1 }],
       total: 100,
       pageNum: 1,
       pageSize: 10,
@@ -62,10 +62,10 @@ describe('modules/system/api/dict — 字典类型 5 个', () => {
   // ─── getDictType ───
 
   it('getDictType: GET /system/dict/type/{id}', async () => {
-    const item = { id: 1, name: '性别', code: 'gender', status: 1 }
+    const item = { id: '1', name: '性别', code: 'gender', status: 1 }
     mockRequest.mockResolvedValueOnce(item)
 
-    const result = await getDictType(1)
+    const result = await getDictType('1')
 
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'GET', url: '/system/dict/type/1' }),
@@ -75,8 +75,8 @@ describe('modules/system/api/dict — 字典类型 5 个', () => {
 
   // ─── createDictType ───
 
-  it('createDictType: POST /system/dict/type with body → Long', async () => {
-    mockRequest.mockResolvedValueOnce(99)
+  it('createDictType: POST /system/dict/type with body → Long (string)', async () => {
+    mockRequest.mockResolvedValueOnce('99')
     const id = await createDictType({ name: 'test', code: 'test', status: 1 })
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -85,19 +85,19 @@ describe('modules/system/api/dict — 字典类型 5 个', () => {
         data: { name: 'test', code: 'test', status: 1 },
       }),
     )
-    expect(id).toBe(99)
+    expect(id).toBe('99')
   })
 
   // ─── updateDictType ───
 
   it('updateDictType: PUT /system/dict/type with body → void', async () => {
     mockRequest.mockResolvedValueOnce(undefined)
-    await updateDictType({ id: 1, name: 'updated', code: 'test', status: 1 })
+    await updateDictType({ id: '1', name: 'updated', code: 'test', status: 1 })
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'PUT',
         url: '/system/dict/type',
-        data: { id: 1, name: 'updated', code: 'test', status: 1 },
+        data: { id: '1', name: 'updated', code: 'test', status: 1 },
       }),
     )
   })
@@ -106,7 +106,7 @@ describe('modules/system/api/dict — 字典类型 5 个', () => {
 
   it('deleteDictType: DELETE /system/dict/type/{id} → void', async () => {
     mockRequest.mockResolvedValueOnce(undefined)
-    await deleteDictType(1)
+    await deleteDictType('1')
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'DELETE', url: '/system/dict/type/1' }),
     )
@@ -124,7 +124,7 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
     mockRequest.mockResolvedValueOnce({
       records: [
         {
-          id: 1,
+          id: '1',
           dictCode: 'gender',
           label: '男',
           dictValue: 'male',
@@ -160,7 +160,7 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
 
   it('getDictData: GET /system/dict/data/{id}', async () => {
     const item = {
-      id: 1,
+      id: '1',
       dictCode: 'gender',
       label: '男',
       dictValue: 'male',
@@ -170,7 +170,7 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
     }
     mockRequest.mockResolvedValueOnce(item)
 
-    const result = await getDictData(1)
+    const result = await getDictData('1')
 
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'GET', url: '/system/dict/data/1' }),
@@ -180,8 +180,8 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
 
   // ─── createDictData ───
 
-  it('createDictData: POST /system/dict/data with body → Long', async () => {
-    mockRequest.mockResolvedValueOnce(42)
+  it('createDictData: POST /system/dict/data with body → Long (string)', async () => {
+    mockRequest.mockResolvedValueOnce('42')
     const id = await createDictData({
       dictCode: 'gender',
       label: '女',
@@ -197,7 +197,7 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
         data: expect.objectContaining({ dictCode: 'gender', label: '女' }),
       }),
     )
-    expect(id).toBe(42)
+    expect(id).toBe('42')
   })
 
   // ─── updateDictData ───
@@ -205,7 +205,7 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
   it('updateDictData: PUT /system/dict/data with body → void', async () => {
     mockRequest.mockResolvedValueOnce(undefined)
     await updateDictData({
-      id: 1,
+      id: '1',
       dictCode: 'gender',
       label: '女',
       dictValue: 'female',
@@ -217,7 +217,7 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
       expect.objectContaining({
         method: 'PUT',
         url: '/system/dict/data',
-        data: expect.objectContaining({ id: 1 }),
+        data: expect.objectContaining({ id: '1' }),
       }),
     )
   })
@@ -226,7 +226,7 @@ describe('modules/system/api/dict — 字典项 5 个', () => {
 
   it('deleteDictData: DELETE /system/dict/data/{id} → void', async () => {
     mockRequest.mockResolvedValueOnce(undefined)
-    await deleteDictData(1)
+    await deleteDictData('1')
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'DELETE', url: '/system/dict/data/1' }),
     )

@@ -100,8 +100,8 @@ describe('DictTypeList', () => {
 
   it('deleteDictType can be called and propagates', async () => {
     vi.mocked(deleteDictType).mockResolvedValue(undefined)
-    await deleteDictType(1)
-    expect(deleteDictType).toHaveBeenCalledWith(1)
+    await deleteDictType('1')
+    expect(deleteDictType).toHaveBeenCalledWith('1')
   })
 
   // ─── 导航 ───

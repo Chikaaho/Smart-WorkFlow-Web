@@ -145,7 +145,7 @@ const switchDefault = computed({
 
 const dialogVisible = ref(false)
 const dialogTitle = computed(() => (editingId.value ? '编辑字典项' : '新建字典项'))
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formError = ref('')
 

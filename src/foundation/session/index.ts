@@ -5,11 +5,11 @@ import { request } from '@/foundation/request'
 
 /** GET /system/auth/me 返回的 user 字段形状。 */
 interface SessionUserDTO {
-  id: number
+  id: string
   username: string
   displayName: string
-  deptId: number
-  tenantId: number
+  deptId: string
+  tenantId: string
   avatar: string | null
 }
 

@@ -16,15 +16,15 @@ describe('foundation/session loadSession', () => {
     vi.restoreAllMocks()
   })
 
-  it('maps number id to string, array permissions/roles to Set', async () => {
+  it('maps DTO fields to Session contract shape (String() passthrough)', async () => {
     // 拷贝一份来验证各个字段的映射。
     mockRequest.mockResolvedValue({
       user: {
-        id: 42,
+        id: '42',
         username: 'tester',
         displayName: '测试员',
-        deptId: 101,
-        tenantId: 1,
+        deptId: '101',
+        tenantId: '1',
         avatar: null,
       },
       permissions: ['sys:view', 'sys:edit'],
@@ -48,11 +48,11 @@ describe('foundation/session loadSession', () => {
   it('passes avatar string when provided', async () => {
     mockRequest.mockResolvedValue({
       user: {
-        id: 1,
+        id: '1',
         username: 'admin',
         displayName: '管理员',
-        deptId: 101,
-        tenantId: 1,
+        deptId: '101',
+        tenantId: '1',
         avatar: 'https://example.com/avatar.png',
       },
       permissions: [],
@@ -69,11 +69,11 @@ describe('foundation/session loadSession', () => {
   it('handles null deptId/tenantId gracefully', async () => {
     mockRequest.mockResolvedValue({
       user: {
-        id: 99,
+        id: '99',
         username: 'guest',
         displayName: '访客',
-        deptId: 0,
-        tenantId: 0,
+        deptId: '0',
+        tenantId: '0',
         avatar: null,
       },
       permissions: [],
@@ -89,7 +89,7 @@ describe('foundation/session loadSession', () => {
 
   it('uses empty Set for nullish permissions/roles', async () => {
     mockRequest.mockResolvedValue({
-      user: { id: 1, username: 'a', displayName: 'A', deptId: 1, tenantId: 1, avatar: null },
+      user: { id: '1', username: 'a', displayName: 'A', deptId: '1', tenantId: '1', avatar: null },
       permissions: null,
       roles: null,
       superAdmin: false,

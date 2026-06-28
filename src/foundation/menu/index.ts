@@ -73,6 +73,24 @@ function resolveComponent(componentPath: string) {
   return componentWhitelist[`/src/modules/${componentPath}.vue`]
 }
 
+/**
+ * DFS 查找菜单子树中第一个可落地叶子（menuType=1 且 component 非空）的完整 path。
+ * 按 sort 升序遍历，保证与菜单显示顺序一致。用于目录 redirect 与默认落地解析。
+ */
+export function findFirstLeafPath(nodes: MenuNode[]): string | undefined {
+  const sorted = [...nodes].sort((a, b) => a.sort - b.sort)
+  for (const node of sorted) {
+    if (node.menuType === MenuType.MENU && node.component) {
+      return node.path
+    }
+    if (node.children?.length) {
+      const found = findFirstLeafPath(node.children)
+      if (found) return found
+    }
+  }
+  return undefined
+}
+
 function buildRoutesFromNodes(nodes: MenuNode[]): RouteRecordRaw[] {
   const routes: RouteRecordRaw[] = []
 
@@ -83,6 +101,16 @@ function buildRoutesFromNodes(nodes: MenuNode[]): RouteRecordRaw[] {
 
     if (node.menuType === MenuType.DIRECTORY) {
       if (node.children?.length) {
+        // 目录节点注册 redirect 路由，指向第一个可落地叶子后代（DFS 首叶）。
+        // 点目录 / 落地到目录路径都弹首叶，不再 404。
+        const firstLeaf = findFirstLeafPath(node.children)
+        if (firstLeaf) {
+          routes.push({
+            path: node.path,
+            redirect: firstLeaf,
+            meta: { title: node.title, icon: node.icon, permission: node.permission },
+          })
+        }
         routes.push(...buildRoutesFromNodes(node.children))
       }
       continue

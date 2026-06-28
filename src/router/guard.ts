@@ -2,7 +2,7 @@ import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-r
 import { getAccessToken } from '@/foundation/auth/token'
 import { refresh, logout } from '@/foundation/auth'
 import { loadSession } from '@/foundation/session'
-import { loadMenu, buildRoutesFromMenu } from '@/foundation/menu'
+import { loadMenu, buildRoutesFromMenu, findFirstLeafPath } from '@/foundation/menu'
 import { useUserStore } from '@/stores/user'
 import { useMenuStore } from '@/stores/menu'
 
@@ -104,6 +104,15 @@ export async function authGuard(
       return
     }
     next({ ...to, replace: true })
+    return
+  }
+
+  // 根路径默认落地：菜单已装载，DFS 取首个可访问叶子；取不到兜底 /404。
+  // 不在路由定义层用 redirect 处理，因为 Vue Router 的 redirect 在 beforeEach 之前解析，
+  // 冷启动时菜单 store 为空必然回退 /404，导致用户看不到登录页。
+  if (to.path === '/') {
+    const firstLeaf = findFirstLeafPath(useMenuStore().menu)
+    next(firstLeaf ?? '/404')
     return
   }
 

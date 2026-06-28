@@ -13,7 +13,14 @@ export const MOCK_USERS = [
 
 /** mock GET /system/auth/me 响应。 */
 export const MOCK_SESSION_DATA = {
-  user: { id: 1, username: 'admin', displayName: '管理员', deptId: 101, tenantId: 1, avatar: null },
+  user: {
+    id: '1',
+    username: 'admin',
+    displayName: '管理员',
+    deptId: '101',
+    tenantId: '1',
+    avatar: null,
+  },
   permissions: ['system:view', 'lowcode:view', 'lowcode:form:view', 'workflow:view'],
   roles: ['admin'],
   superAdmin: true,
@@ -27,11 +34,27 @@ export const MOCK_MENU_TREE = [
     name: 'system',
     title: '系统管理',
     path: 'system',
-    component: 'system/views/SystemHome',
+    component: null,
     icon: 'Setting',
     sort: 1,
-    menuType: 1,
+    menuType: 0,
     permission: 'system:view',
+    hidden: false,
+    children: [
+      {
+        id: '10',
+        parentId: '1',
+        name: 'dict',
+        title: '字典管理',
+        path: 'system/dict',
+        component: 'system/views/DictTypeList',
+        icon: 'Collection',
+        sort: 1,
+        menuType: 1,
+        permission: 'system:dict:view',
+        hidden: false,
+      },
+    ],
   },
   {
     id: '2',

@@ -7,7 +7,7 @@
 
 /** 字典类型实体（镜像 SysDictType） */
 export interface SysDictType {
-  id?: number
+  id?: string
   name: string
   code: string
   status: number
@@ -22,7 +22,7 @@ export interface SysDictType {
 
 /** 字典项实体（镜像 SysDictData） */
 export interface SysDictData {
-  id?: number
+  id?: string
   dictCode: string
   label: string
   dictValue: string
