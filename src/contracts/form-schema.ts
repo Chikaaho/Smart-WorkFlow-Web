@@ -6,6 +6,7 @@
  */
 
 export type FieldType =
+  /* ── 启用类型 ── */
   | 'TEXT'
   | 'RICH_TEXT'
   | 'NUMBER'
@@ -14,17 +15,34 @@ export type FieldType =
   | 'DICT'
   | 'REFERENCE'
   | 'TABLE'
+  /* ── 占位成员（对齐后端 FieldType 全集;前端不渲染,仅类型承载,遇则 warn+skip） ── */
+  | 'MULTISELECT'
+  | 'ATTACHMENT'
+  | 'IMAGE'
+  | 'LABEL'
+  | 'EMAIL'
+  | 'PHONE'
+  | 'URL'
+  | 'RATE'
+  | 'SLIDER'
 
-/** TABLE 子字段:仅携带 name 与 type,不递归嵌套。 */
+/** TABLE 子字段:与 FieldDef 同规格（不含 subFields,不递归）。 */
 export interface TableSubField {
   name: string
   type: FieldType
+  label?: string
+  required?: boolean
+  length?: number
+  dictType?: string
+  renderAs?: 'select' | 'radio'
+  targetFormId?: string
 }
 
 interface BaseField {
   name: string
   label?: string
   required?: boolean
+  length?: number
 }
 
 export interface TextField extends BaseField {
@@ -50,10 +68,12 @@ export interface BoolField extends BaseField {
 export interface DictField extends BaseField {
   type: 'DICT'
   dictType: string
+  renderAs?: 'select' | 'radio'
 }
 
 export interface ReferenceField extends BaseField {
   type: 'REFERENCE'
+  targetFormId?: string
 }
 
 export interface TableField extends BaseField {
@@ -75,4 +95,8 @@ export type FormSchemaField =
 export interface FormSchema {
   title: string
   fields: FormSchemaField[]
+  /** 定义 schema 版本号,后端下发,前端承载但不消费。 */
+  schemaVersion?: number
+  /** 校验规则预留,后端下发,前端承载但不消费。 */
+  rules?: Record<string, unknown>
 }

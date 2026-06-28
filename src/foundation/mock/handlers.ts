@@ -146,13 +146,13 @@ export const mockRegistrations: MockRegistration[] = [
   },
 
   // ── 表单提交 ──────────────────────────────────────────────
-  // POST /api/form/submit/:formKey
+  // POST /api/form/data/:formKey
   // - 正常 ➤ code=0, data: recordId
   // - 必填 TEXT 为空 ➤ code=1401, data=null
   // - 字典值域错误 ➤ code=1403, data=null（当 leaveType 不在字典范围内）
   {
     method: 'POST',
-    pattern: '/api/form/submit/:formKey',
+    pattern: '/api/form/data/:formKey',
     handler: (_params, _query, body) => {
       const formKey = (_params as Record<string, string>).formKey
       const payload = body as Record<string, unknown> | undefined

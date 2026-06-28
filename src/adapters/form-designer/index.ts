@@ -17,18 +17,26 @@ const KNOWN_FIELD_TYPES = new Set<string>([
   'TABLE',
 ])
 
-interface RawFieldDef {
+interface RawSubFieldDef {
   name: string
   type: string
-  required?: boolean
   label?: string
+  required?: boolean
+  length?: number
   dictType?: string
-  subFields?: Array<{ name: string; type: string }>
+  renderAs?: string
+  targetFormId?: string
+}
+
+interface RawFieldDef extends RawSubFieldDef {
+  subFields?: RawSubFieldDef[]
 }
 
 interface RawDefinition {
   title: string
   fields: RawFieldDef[]
+  schemaVersion?: number
+  rules?: Record<string, unknown>
 }
 
 function mapRawField(raw: RawFieldDef): FormSchemaField | null {
@@ -41,22 +49,46 @@ function mapRawField(raw: RawFieldDef): FormSchemaField | null {
     name: raw.name,
     ...(raw.label !== undefined ? { label: raw.label } : {}),
     required: raw.required ?? false,
+    ...(raw.length !== undefined ? { length: raw.length } : {}),
   }
 
   const type = raw.type as FieldType
 
   if (type === 'DICT') {
-    return { ...base, type, dictType: raw.dictType ?? '' }
+    return {
+      ...base,
+      type,
+      dictType: raw.dictType ?? '',
+      ...(raw.renderAs !== undefined ? { renderAs: raw.renderAs as 'select' | 'radio' } : {}),
+    }
+  }
+
+  if (type === 'REFERENCE') {
+    return {
+      ...base,
+      type,
+      ...(raw.targetFormId !== undefined ? { targetFormId: raw.targetFormId } : {}),
+    }
   }
 
   if (type === 'TABLE') {
     const subFields: TableSubField[] = (raw.subFields ?? [])
       .filter((sf) => KNOWN_FIELD_TYPES.has(sf.type))
-      .map((sf) => ({ name: sf.name, type: sf.type as FieldType }))
+      .map((sf) => ({
+        name: sf.name,
+        type: sf.type as FieldType,
+        ...(sf.label !== undefined ? { label: sf.label } : {}),
+        ...(sf.required !== undefined ? { required: sf.required } : {}),
+        ...(sf.length !== undefined ? { length: sf.length } : {}),
+        ...(sf.dictType !== undefined ? { dictType: sf.dictType } : {}),
+        ...(sf.renderAs !== undefined ? { renderAs: sf.renderAs as 'select' | 'radio' } : {}),
+        ...(sf.targetFormId !== undefined ? { targetFormId: sf.targetFormId } : {}),
+      }))
     return { ...base, type, subFields }
   }
 
-  return { ...base, type }
+  // 运行时 KNOWN_FIELD_TYPES gate 保证此处 type ∈ {TEXT,RICH_TEXT,NUMBER,DATE,BOOL}
+  return { ...base, type } as FormSchemaField
 }
 
 /** 将后端裸 definition JSON 字符串解析并映射为前端稳定的 FormSchema。 */
@@ -78,7 +110,12 @@ export function parseDefinition(rawJson: string): FormSchema {
     return mapped !== null ? [mapped] : []
   })
 
-  return { title: raw.title, fields }
+  return {
+    title: raw.title,
+    fields,
+    ...(raw.schemaVersion !== undefined ? { schemaVersion: raw.schemaVersion } : {}),
+    ...(raw.rules !== undefined ? { rules: raw.rules } : {}),
+  }
 }
 
 /**

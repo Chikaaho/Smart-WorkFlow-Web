@@ -96,7 +96,7 @@ describe('foundation/mock/index', () => {
     const mod = await import('@/foundation/mock/index')
     const result = await mod.dispatchMock(
       'POST',
-      `/form/submit/${DEMO_FORM_KEY}`,
+      `/form/data/${DEMO_FORM_KEY}`,
       '/api',
       {},
       {
@@ -117,7 +117,7 @@ describe('foundation/mock/index', () => {
     const mod = await import('@/foundation/mock/index')
     const result = await mod.dispatchMock(
       'POST',
-      `/form/submit/${DEMO_FORM_KEY}`,
+      `/form/data/${DEMO_FORM_KEY}`,
       '/api',
       {},
       {
@@ -138,7 +138,7 @@ describe('foundation/mock/index', () => {
     const mod = await import('@/foundation/mock/index')
     const result = await mod.dispatchMock(
       'POST',
-      `/form/submit/${DEMO_FORM_KEY}`,
+      `/form/data/${DEMO_FORM_KEY}`,
       '/api',
       {},
       {
@@ -241,7 +241,7 @@ describe('foundation/mock/index', () => {
     const mod = await import('@/foundation/mock/index')
     const result = await mod.dispatchMock(
       'POST',
-      '/form/submit/other-form',
+      '/form/data/other-form',
       '/api',
       {},
       { applicant: '' }, // 空值但非 demo-form → 无校验

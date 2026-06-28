@@ -1,7 +1,7 @@
 import { request } from '@/foundation/request'
 import type { PageQuery, PageResult } from '@/contracts/common'
 import { parseDefinition } from '@/adapters/form-designer'
-import type { FormSchema } from '@/contracts/form-schema'
+import type { FormSchema, FormSchemaField } from '@/contracts/form-schema'
 
 export interface FormDefDTO {
   formKey: string
@@ -35,15 +35,60 @@ export async function getFormDefinition(formKey: string): Promise<FormSchema> {
 
 /**
  * seam: 后端端点未就绪,形状已锁,上线即通。
- * POST /api/form/submit/{formKey}
- * 请求体: Record<string, unknown>  返回: recordId(string)
+ * POST /api/form/data/{formKey}
+ * 请求体: Map<字段名,值>  返回: R<recordId>(经 request() 解包)
+ *
+ * 可选的 fields 参数:传入 schema 字段列表后,提交前自动按字段 type 归一
+ * (BOOL→1/0、DATE→ISO 串),否则需调用方自行 normalizeSubmitData。
  */
-export async function submitForm(formKey: string, data: Record<string, unknown>): Promise<string> {
+export async function submitForm(
+  formKey: string,
+  data: Record<string, unknown>,
+  fields?: FormSchemaField[],
+): Promise<string> {
+  const payload = fields ? normalizeSubmitData(data, fields) : data
   return request<string>({
     method: 'POST',
-    url: `/form/submit/${formKey}`,
-    data,
+    url: `/form/data/${formKey}`,
+    data: payload,
   })
+}
+
+/**
+ * 提交前归一层：按字段 type 转换值，对齐后端期望格式。
+ *
+ * - BOOL: true/false → 1/0
+ * - DATE: 确保为 ISO 串 (YYYY-MM-DD)
+ * - 其余类型: 原值透传
+ * - 缺失字段: 补空串
+ *
+ * 纯函数，可独立使用，有单测覆盖。
+ * TODO(P3-1b): TABLE 子字段按 subField type 递归归一。
+ */
+export function normalizeSubmitData(
+  data: Record<string, unknown>,
+  fields: FormSchemaField[],
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const field of fields) {
+    const value = data[field.name]
+    if (value === undefined || value === null) {
+      result[field.name] = ''
+      continue
+    }
+
+    switch (field.type) {
+      case 'BOOL':
+        result[field.name] = value ? 1 : 0
+        break
+      case 'DATE':
+        result[field.name] = String(value)
+        break
+      default:
+        result[field.name] = value
+    }
+  }
+  return result
 }
 
 /**

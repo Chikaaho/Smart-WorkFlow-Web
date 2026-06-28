@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios'
 import type { ApiResponse } from '@/contracts/common'
 import { getAccessToken } from '@/foundation/auth/token'
+import { getErrorMessage } from './error-code-map'
 
 /**
  * 业务层唯一 HTTP 入口。axios 只允许在本文件出现（ESLint 边界规则强制）。
@@ -78,7 +79,7 @@ export async function request<T>(config: Parameters<AxiosInstance['request']>[0]
     if (mockResult !== undefined) {
       // mock 响应流经与真实请求相同的错误归一管线（ApiError）
       if (mockResult.code !== 0) {
-        throw new ApiError(mockResult.code, mockResult.message)
+        throw new ApiError(mockResult.code, getErrorMessage(mockResult.code, mockResult.message))
       }
       return mockResult.data as T
     }
@@ -87,7 +88,10 @@ export async function request<T>(config: Parameters<AxiosInstance['request']>[0]
 
   const response = await client.request<ApiResponse<T>>(config)
   if (response.data.code !== 0) {
-    throw new ApiError(response.data.code, response.data.message)
+    throw new ApiError(
+      response.data.code,
+      getErrorMessage(response.data.code, response.data.message),
+    )
   }
   return response.data.data
 }
