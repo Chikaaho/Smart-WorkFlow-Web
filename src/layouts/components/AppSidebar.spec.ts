@@ -30,9 +30,9 @@ const MENU: MenuNode[] = [
   {
     id: '2',
     parentId: null,
-    name: 'lowcode',
+    name: 'form',
     title: '低代码',
-    path: 'lowcode',
+    path: 'form',
     component: null,
     sort: 2,
     menuType: MenuType.DIRECTORY,
@@ -40,20 +40,20 @@ const MENU: MenuNode[] = [
       {
         id: '2-1',
         parentId: '2',
-        name: 'lowcode-overview',
+        name: 'form-overview',
         title: '低代码概览',
-        path: 'lowcode/overview',
-        component: 'lowcode/views/LowcodeHome',
+        path: 'form/overview',
+        component: 'form/views/FormHome',
         sort: 1,
         menuType: MenuType.MENU,
       },
       {
         id: '2-2',
         parentId: '2',
-        name: 'lowcode-form',
+        name: 'form-form',
         title: '表单设计',
-        path: 'lowcode/form',
-        component: 'lowcode/views/LowcodeForm',
+        path: 'form/form',
+        component: 'form/views/FormForm',
         sort: 2,
         menuType: MenuType.MENU,
       },
@@ -99,21 +99,21 @@ describe('layouts/AppSidebar', () => {
     expect(wrapper.findAllComponents(AppSidebarItem)).toHaveLength(4)
     const indexes = wrapper.findAll('.stub-item').map((el) => el.attributes('data-index'))
     expect(indexes).toContain('/system')
-    expect(indexes).toContain('/lowcode/overview')
-    expect(indexes).toContain('/lowcode/form')
+    expect(indexes).toContain('/form/overview')
+    expect(indexes).toContain('/form/form')
   })
 
   it('renders a nested directory as a sub-menu keyed by its full path', () => {
     const wrapper = mountSidebar()
     const subs = wrapper.findAll('.stub-sub')
     expect(subs).toHaveLength(1)
-    expect(subs[0].attributes('data-index')).toBe('/lowcode')
+    expect(subs[0].attributes('data-index')).toBe('/form')
   })
 
   it('binds el-menu active index to the current route path (selection follows route)', () => {
-    mockPath = '/lowcode/form'
+    mockPath = '/form/form'
     const wrapper = mountSidebar()
-    expect(wrapper.find('.stub-menu').attributes('data-active')).toBe('/lowcode/form')
+    expect(wrapper.find('.stub-menu').attributes('data-active')).toBe('/form/form')
   })
 
   it('forwards the collapse flag to el-menu (collapsible is a first-class capability)', () => {

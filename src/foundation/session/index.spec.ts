@@ -110,7 +110,7 @@ describe('foundation/session loadSession', () => {
     expect(session.user.username).toBe('admin')
     expect(session.user.displayName).toBe('管理员')
     expect(session.permissions.has('system:view')).toBe(true)
-    expect(session.permissions.has('lowcode:form:view')).toBe(true)
+    expect(session.permissions.has('form:form:view')).toBe(true)
     expect(session.roles.has('admin')).toBe(true)
     expect(session.superAdmin).toBe(true)
     // avatar: null → undefined

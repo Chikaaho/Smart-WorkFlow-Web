@@ -354,6 +354,94 @@ describe('adapters/form-designer/toFormCreateRule', () => {
     expect(children[3].type).toBe('switch')
   })
 
+  /* ── TABLE 子字段 DICT ── */
+
+  it('TABLE children DICT sub-field maps to select with __dictType__', () => {
+    const schema = {
+      title: 'F',
+      fields: [
+        {
+          name: 'tbl',
+          type: 'TABLE' as const,
+          subFields: [{ name: 'col', type: 'DICT' as const, dictType: 'sys_dept' }],
+        },
+      ],
+    }
+    const rules = toFormCreateRule(schema)
+    const children = (rules[0] as Record<string, unknown>).children as Record<string, unknown>[]
+    expect(children).toHaveLength(1)
+    expect(children[0].type).toBe('select')
+    expect(children[0].options).toEqual([])
+    expect((children[0] as Record<string, unknown>).__dictType__).toBe('sys_dept')
+  })
+
+  it('TABLE children DICT sub-field with renderAs="radio" passes renderAs metadata', () => {
+    const schema = {
+      title: 'F',
+      fields: [
+        {
+          name: 'tbl',
+          type: 'TABLE' as const,
+          subFields: [
+            { name: 'col', type: 'DICT' as const, dictType: 'sys_sex', renderAs: 'radio' as const },
+          ],
+        },
+      ],
+    }
+    const rules = toFormCreateRule(schema)
+    const children = (rules[0] as Record<string, unknown>).children as Record<string, unknown>[]
+    expect(children[0].type).toBe('select')
+    expect((children[0] as Record<string, unknown>).renderAs).toBe('radio')
+  })
+
+  it('TABLE children DICT sub-field without renderAs omits renderAs metadata', () => {
+    const schema = {
+      title: 'F',
+      fields: [
+        {
+          name: 'tbl',
+          type: 'TABLE' as const,
+          subFields: [{ name: 'col', type: 'DICT' as const, dictType: 'sys_role' }],
+        },
+      ],
+    }
+    const rules = toFormCreateRule(schema)
+    const children = (rules[0] as Record<string, unknown>).children as Record<string, unknown>[]
+    expect((children[0] as Record<string, unknown>).renderAs).toBeUndefined()
+  })
+
+  it('TABLE children REFERENCE sub-field falls back to input', () => {
+    const schema = {
+      title: 'F',
+      fields: [
+        {
+          name: 'tbl',
+          type: 'TABLE' as const,
+          subFields: [{ name: 'col', type: 'REFERENCE' as const }],
+        },
+      ],
+    }
+    const rules = toFormCreateRule(schema)
+    const children = (rules[0] as Record<string, unknown>).children as Record<string, unknown>[]
+    expect(children[0].type).toBe('input')
+  })
+
+  it('TABLE children TABLE sub-field falls back to input (no recursion)', () => {
+    const schema = {
+      title: 'F',
+      fields: [
+        {
+          name: 'tbl',
+          type: 'TABLE' as const,
+          subFields: [{ name: 'col', type: 'TABLE' as const }],
+        },
+      ],
+    }
+    const rules = toFormCreateRule(schema)
+    const children = (rules[0] as Record<string, unknown>).children as Record<string, unknown>[]
+    expect(children[0].type).toBe('input')
+  })
+
   /* ---- 未知 type 跳过 + 告警 ---- */
 
   it('skips unknown field type with console.warn, does not break other fields', () => {

@@ -100,3 +100,11 @@ export interface FormSchema {
   /** 校验规则预留,后端下发,前端承载但不消费。 */
   rules?: Record<string, unknown>
 }
+
+/** REFERENCE 选择器回填值：id 存库、value 展示。 */
+export interface IdValueProperty {
+  /** 目标记录的主键 id（提交时进入 ref_{name}_id 列）。 */
+  id: string
+  /** 目标记录的显示字段值（供 UI 展示）。 */
+  value: string
+}

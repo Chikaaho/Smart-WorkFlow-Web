@@ -21,6 +21,39 @@ function mapDictItemDTO(dto: DictItemDTO): DictItem {
   }
 }
 
+/** 字典类型条目，供「绑定字典」类选择器使用（code = 写回字段的 dictType 值）。 */
+export interface DictTypeItem {
+  /** 字典类型编码，对应字段 dictType 写回值。 */
+  code: string
+  /** 字典类型显示名。 */
+  name: string
+}
+
+/** 后端字典类型分页原始形状（records，对齐 system 字典管理端口）。 */
+interface DictTypePageDTO {
+  records: Array<{ code: string; name: string }>
+}
+
+/**
+ * 列出全部字典类型，供表单设计器 DICT 字段「绑定字典」下拉选择。
+ *
+ * 走 foundation/request 单一请求层（业务层禁直引 axios）。字典是横切基础设施，
+ * 故读取清单沉淀在 foundation/dict，**modules 之间不互相 import**（modules/form 不直引
+ * modules/system 的字典管理 API，避免破坏跨模块边界）。
+ *
+ * 后端 `/system/dict/type/page` 为分页接口，设计期字典类型量级小，此处取大页一次拉全。
+ * TODO(seam): 后端若提供「列出全部字典类型」专用端点，改调该端点即可，调用方零改。
+ */
+export async function listDictTypes(): Promise<DictTypeItem[]> {
+  const raw = await request<DictTypePageDTO>({
+    method: 'POST',
+    url: '/system/dict/type/page',
+    params: { pageNum: 1, pageSize: 1000 },
+    data: {},
+  })
+  return raw.records.map((r) => ({ code: r.code, name: r.name }))
+}
+
 const dictRegistry = new Map<string, DictItem[]>()
 const loadingDict = new Map<string, Promise<void>>()
 

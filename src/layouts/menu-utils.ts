@@ -2,7 +2,7 @@ import { MenuType, type MenuNode } from '@/contracts/menu'
 
 /**
  * 侧边栏 / 面包屑的纯派生工具——只读菜单单一数据源（决策文档 · 外壳刀 §4/§5），不持有状态。
- * 菜单节点 path 为相对布局根的路径（如 'system'、'lowcode/form'），统一映射为绝对路径供 el-menu 使用。
+ * 菜单节点 path 为相对布局根的路径（如 'system'、'form/form'），统一映射为绝对路径供 el-menu 使用。
  */
 
 export function toFullPath(node: MenuNode): string {

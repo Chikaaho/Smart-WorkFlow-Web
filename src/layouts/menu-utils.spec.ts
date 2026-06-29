@@ -6,9 +6,9 @@ const MENU: MenuNode[] = [
   {
     id: '2',
     parentId: null,
-    name: 'lowcode',
+    name: 'form',
     title: '低代码',
-    path: 'lowcode',
+    path: 'form',
     component: null,
     sort: 2,
     menuType: MenuType.DIRECTORY,
@@ -16,20 +16,20 @@ const MENU: MenuNode[] = [
       {
         id: '2-1',
         parentId: '2',
-        name: 'lowcode-form',
+        name: 'form-form',
         title: '表单设计',
-        path: 'lowcode/form',
-        component: 'lowcode/views/LowcodeForm',
+        path: 'form/form',
+        component: 'form/views/FormForm',
         sort: 2,
         menuType: MenuType.MENU,
       },
       {
         id: '2-2',
         parentId: '2',
-        name: 'lowcode-hidden',
+        name: 'form-hidden',
         title: '隐藏项',
-        path: 'lowcode/hidden',
-        component: 'lowcode/views/Hidden',
+        path: 'form/hidden',
+        component: 'form/views/Hidden',
         sort: 1,
         menuType: MenuType.MENU,
         hidden: true,
@@ -61,13 +61,13 @@ const MENU: MenuNode[] = [
 describe('layouts/menu-utils', () => {
   it('toFullPath maps relative menu paths to absolute, leaving absolute untouched', () => {
     expect(toFullPath(MENU[1])).toBe('/system')
-    expect(toFullPath(MENU[0].children![0])).toBe('/lowcode/form')
+    expect(toFullPath(MENU[0].children![0])).toBe('/form/form')
     expect(toFullPath({ ...MENU[1], path: '/already' })).toBe('/already')
   })
 
   it('buildMenuTrail returns the root->leaf chain for a nested route', () => {
-    const trail = buildMenuTrail(MENU, '/lowcode/form')
-    expect(trail.map((n) => n.name)).toEqual(['lowcode', 'lowcode-form'])
+    const trail = buildMenuTrail(MENU, '/form/form')
+    expect(trail.map((n) => n.name)).toEqual(['form', 'form-form'])
   })
 
   it('buildMenuTrail returns single node for a top-level route, [] for unknown', () => {
@@ -76,15 +76,15 @@ describe('layouts/menu-utils', () => {
   })
 
   it('openedMenuKeys yields the directory ancestors on the active branch', () => {
-    expect(openedMenuKeys(MENU, '/lowcode/form')).toEqual(['/lowcode'])
+    expect(openedMenuKeys(MENU, '/form/form')).toEqual(['/form'])
     expect(openedMenuKeys(MENU, '/system')).toEqual([])
   })
 
   it('visibleMenu drops button + hidden nodes, sorts by sort, recurses into children', () => {
     const visible = visibleMenu(MENU)
-    // 顶层按 sort：system(1) 在 lowcode(2) 前；按钮被剔除。
-    expect(visible.map((n) => n.name)).toEqual(['system', 'lowcode'])
+    // 顶层按 sort：system(1) 在 form(2) 前；按钮被剔除。
+    expect(visible.map((n) => n.name)).toEqual(['system', 'form'])
     // 目录下隐藏子项被剔除，只剩表单设计。
-    expect(visible[1].children!.map((n) => n.name)).toEqual(['lowcode-form'])
+    expect(visible[1].children!.map((n) => n.name)).toEqual(['form-form'])
   })
 })

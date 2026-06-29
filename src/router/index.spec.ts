@@ -35,36 +35,36 @@ const mockSystemMenu: MenuNode[] = [
   {
     id: '2',
     parentId: null,
-    name: 'lowcode',
+    name: 'form',
     title: '低代码',
-    path: 'lowcode',
+    path: 'form',
     component: null,
     icon: 'Grid',
     sort: 2,
     menuType: MenuType.DIRECTORY,
-    permission: 'lowcode:view',
+    permission: 'form:view',
     children: [
       {
         id: '2-1',
         parentId: '2',
-        name: 'lowcode-overview',
+        name: 'form-overview',
         title: '低代码概览',
-        path: 'lowcode/overview',
-        component: 'lowcode/views/LowcodeHome',
+        path: 'form/overview',
+        component: 'form/views/FormHome',
         sort: 1,
         menuType: MenuType.MENU,
-        permission: 'lowcode:view',
+        permission: 'form:view',
       },
       {
         id: '2-2',
         parentId: '2',
-        name: 'lowcode-form',
+        name: 'form-form',
         title: '表单设计',
-        path: 'lowcode/form',
-        component: 'lowcode/views/LowcodeForm',
+        path: 'form/form',
+        component: 'form/views/FormForm',
         sort: 2,
         menuType: MenuType.MENU,
-        permission: 'lowcode:form:view',
+        permission: 'form:form:view',
       },
     ],
   },
@@ -85,36 +85,36 @@ const noSystemMenu: MenuNode[] = [
   {
     id: '2',
     parentId: null,
-    name: 'lowcode',
+    name: 'form',
     title: '低代码',
-    path: 'lowcode',
+    path: 'form',
     component: null,
     icon: 'Grid',
     sort: 2,
     menuType: MenuType.DIRECTORY,
-    permission: 'lowcode:view',
+    permission: 'form:view',
     children: [
       {
         id: '2-2',
         parentId: '2',
-        name: 'lowcode-form',
+        name: 'form-form',
         title: '表单设计',
-        path: 'lowcode/form',
-        component: 'lowcode/views/LowcodeForm',
+        path: 'form/form',
+        component: 'form/views/FormForm',
         sort: 2,
         menuType: MenuType.MENU,
-        permission: 'lowcode:form:view',
+        permission: 'form:form:view',
       },
       {
         id: '2-1',
         parentId: '2',
-        name: 'lowcode-overview',
+        name: 'form-overview',
         title: '低代码概览',
-        path: 'lowcode/overview',
-        component: 'lowcode/views/LowcodeHome',
+        path: 'form/overview',
+        component: 'form/views/FormHome',
         sort: 1,
         menuType: MenuType.MENU,
-        permission: 'lowcode:view',
+        permission: 'form:view',
       },
     ],
   },
@@ -148,54 +148,54 @@ describe('router/index resolveDefaultRedirect', () => {
 
   // ── ② 无 system 菜单 → 落该过滤树的首叶 ──────────────────
 
-  it('filtered menu without system: lands on lowcode/overview (first leaf of remaining tree)', () => {
+  it('filtered menu without system: lands on form/overview (first leaf of remaining tree)', () => {
     useMenuStore().setMenu(noSystemMenu)
-    // lowcode/overview sort=1 < lowcode/form sort=2 → overview 为首叶
-    expect(resolveDefaultRedirect()).toBe('lowcode/overview')
+    // form/overview sort=1 < form/form sort=2 → overview 为首叶
+    expect(resolveDefaultRedirect()).toBe('form/overview')
   })
 
   it('filtered menu: respects sort order when picking first leaf', () => {
-    // swap sort: lowcode/form sort=1, lowcode/overview sort=2 → form wins
+    // swap sort: form/form sort=1, form/overview sort=2 → form wins
     const menuWithSwappedSort: MenuNode[] = [
       {
         id: '2',
         parentId: null,
-        name: 'lowcode',
+        name: 'form',
         title: '低代码',
-        path: 'lowcode',
+        path: 'form',
         component: null,
         icon: 'Grid',
         sort: 2,
         menuType: MenuType.DIRECTORY,
-        permission: 'lowcode:view',
+        permission: 'form:view',
         children: [
           {
             id: '2-2',
             parentId: '2',
-            name: 'lowcode-form',
+            name: 'form-form',
             title: '表单设计',
-            path: 'lowcode/form',
-            component: 'lowcode/views/LowcodeForm',
+            path: 'form/form',
+            component: 'form/views/FormForm',
             sort: 1,
             menuType: MenuType.MENU,
-            permission: 'lowcode:form:view',
+            permission: 'form:form:view',
           },
           {
             id: '2-1',
             parentId: '2',
-            name: 'lowcode-overview',
+            name: 'form-overview',
             title: '低代码概览',
-            path: 'lowcode/overview',
-            component: 'lowcode/views/LowcodeHome',
+            path: 'form/overview',
+            component: 'form/views/FormHome',
             sort: 2,
             menuType: MenuType.MENU,
-            permission: 'lowcode:view',
+            permission: 'form:view',
           },
         ],
       },
     ]
     useMenuStore().setMenu(menuWithSwappedSort)
-    expect(resolveDefaultRedirect()).toBe('lowcode/form')
+    expect(resolveDefaultRedirect()).toBe('form/form')
   })
 
   // ── ③ 空树兜底不 404 ─────────────────────────────────────

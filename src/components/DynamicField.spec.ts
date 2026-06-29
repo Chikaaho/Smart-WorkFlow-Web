@@ -7,10 +7,10 @@ import type { FormSchemaField } from '@/contracts/form-schema'
 const baseGlobal = {
   stubs: {
     DictSelect: {
-      props: ['type', 'modelValue'],
+      props: ['type', 'modelValue', 'renderAs'],
       emits: ['update:modelValue'],
       template:
-        '<select :data-dict-type="type" data-testid="dict-select" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="male">male</option><option value="female">female</option></select>',
+        '<select :data-dict-type="type" :data-render-as="renderAs" data-testid="dict-select" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="male">male</option><option value="female">female</option></select>',
     },
     ElDatePicker: {
       props: ['modelValue', 'valueFormat'],
@@ -18,22 +18,28 @@ const baseGlobal = {
       template: '<input data-testid="date-picker" :value="modelValue" />',
     },
     ElInputNumber: {
-      props: ['modelValue'],
-      emits: ['update:modelValue'],
-      template: '<input data-testid="input-number" type="number" :value="modelValue" />',
-    },
-    ElSwitch: {
-      props: ['modelValue'],
+      props: ['modelValue', 'disabled'],
       emits: ['update:modelValue'],
       template:
-        '<input data-testid="switch" type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+        '<input data-testid="input-number" type="number" :value="modelValue" :disabled="disabled" />',
+    },
+    ElSwitch: {
+      props: ['modelValue', 'disabled'],
+      emits: ['update:modelValue'],
+      template:
+        '<input data-testid="switch" type="checkbox" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+    },
+    ReferenceSelector: {
+      props: ['targetFormKey', 'visible', 'selectedId'],
+      emits: ['update:visible', 'select'],
+      template: '<div data-testid="reference-selector" style="display:none" />',
     },
   },
 }
 
-function mountField(field: FormSchemaField, modelValue: unknown = '') {
+function mountField(field: FormSchemaField, modelValue: unknown = '', readonly = false) {
   return mount(DynamicField, {
-    props: { field, modelValue },
+    props: { field, modelValue, readonly },
     global: baseGlobal,
   })
 }
@@ -41,6 +47,100 @@ function mountField(field: FormSchemaField, modelValue: unknown = '') {
 /* ═══════════════════════════════════════════════════
  * 8 类 field.type 各渲染出对应控件
  * ═══════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════
+ * readonly 模式
+ * ═══════════════════════════════════════════════════ */
+
+describe('DynamicField — readonly', () => {
+  it('TEXT readonly → el-input 设 readonly', () => {
+    const wrapper = mountField({ name: 'f1', type: 'TEXT' }, 'hello', true)
+    expect(wrapper.findComponent({ name: 'ElInput' }).props('readonly')).toBe(true)
+  })
+
+  it('NUMBER readonly → el-input-number 设 disabled', () => {
+    const wrapper = mountField({ name: 'f3', type: 'NUMBER' }, 0, true)
+    const input = wrapper.find('[data-testid="input-number"]')
+    expect(input.exists()).toBe(true)
+    expect(input.attributes('disabled')).toBeDefined()
+  })
+
+  it('BOOL readonly → el-switch 设 disabled', () => {
+    const wrapper = mountField({ name: 'f5', type: 'BOOL' }, false, true)
+    const sw = wrapper.find('[data-testid="switch"]')
+    expect(sw.exists()).toBe(true)
+    expect(sw.attributes('disabled')).toBeDefined()
+  })
+
+  it('DICT readonly → DictSelect 设 disabled', () => {
+    const wrapper = mountField({ name: 'f6', type: 'DICT', dictType: 'sex' }, '', true)
+    const dict = wrapper.find('[data-testid="dict-select"]')
+    expect(dict.exists()).toBe(true)
+    expect(dict.attributes('disabled')).toBeDefined()
+  })
+
+  it('REFERENCE readonly → 选择按钮 disabled', () => {
+    const wrapper = mountField(
+      { name: 'f7', type: 'REFERENCE', targetFormId: 'demo-form' },
+      '',
+      true,
+    )
+    const buttons = wrapper.findAll('button')
+    const selectBtn = buttons.find((b) => b.text() === '选择')
+    expect(selectBtn).toBeTruthy()
+    expect(selectBtn!.attributes('disabled')).toBeDefined()
+  })
+
+  it('TABLE readonly → 隐藏添加行和删除按钮', () => {
+    const wrapper = mountField(
+      { name: 't1', type: 'TABLE', subFields: [{ name: 'c1', type: 'TEXT' }] },
+      [{ c1: 'a' }],
+      true,
+    )
+    // 「操作」表头不应出现
+    const headers = wrapper.findAll('th')
+    const opHeader = headers.find((h) => h.text() === '操作')
+    expect(opHeader).toBeUndefined()
+    // 删除按钮不应出现
+    const delBtns = wrapper.findAll('button').filter((b) => b.text() === '删除')
+    expect(delBtns.length).toBe(0)
+    // 添加行按钮不应出现
+    const addBtns = wrapper.findAll('button').filter((b) => b.text().includes('添加行'))
+    expect(addBtns.length).toBe(0)
+  })
+})
+
+/* ═══════════════════════════════════════════════════
+ * referenceLabel（REFERENCE 回显）
+ * ═══════════════════════════════════════════════════ */
+
+describe('DynamicField — referenceLabel', () => {
+  it('显示 referenceLabel 而非裸 ID', () => {
+    const wrapper = mount(DynamicField, {
+      props: {
+        field: { name: 'ref1', type: 'REFERENCE', targetFormId: 'demo-form' },
+        modelValue: 'raw-id-001',
+        referenceLabel: '张三',
+      },
+      global: baseGlobal,
+    })
+    const input = wrapper.findComponent({ name: 'ElInput' })
+    expect(input.props('modelValue')).toBe('张三')
+  })
+
+  it('referenceLabel 为空时降级到 modelValue（ID）', () => {
+    const wrapper = mount(DynamicField, {
+      props: {
+        field: { name: 'ref1', type: 'REFERENCE', targetFormId: 'demo-form' },
+        modelValue: 'raw-id-001',
+        referenceLabel: '',
+      },
+      global: baseGlobal,
+    })
+    const input = wrapper.findComponent({ name: 'ElInput' })
+    expect(input.props('modelValue')).toBe('raw-id-001')
+  })
+})
 
 describe('DynamicField — 8 类字段渲染', () => {
   it('TEXT → el-input', () => {
@@ -79,11 +179,30 @@ describe('DynamicField — 8 类字段渲染', () => {
     expect(dict.attributes('data-dict-type')).toBe('sex')
   })
 
-  it('REFERENCE → el-input 降级（非 textarea）', () => {
-    const wrapper = mountField({ name: 'f7', type: 'REFERENCE' })
+  it('REFERENCE → 只读输入框 + 选择按钮（ReferenceSelector 弹窗）', () => {
+    const wrapper = mountField({
+      name: 'f7',
+      type: 'REFERENCE',
+      targetFormId: 'demo-form',
+    })
     const input = wrapper.findComponent({ name: 'ElInput' })
     expect(input.exists()).toBe(true)
-    expect(input.props('type')).toBe('text')
+    // 只读
+    expect(input.props('readonly')).toBe(true)
+    // 「选择」按钮存在
+    const buttons = wrapper.findAll('button')
+    const selectBtn = buttons.find((b) => b.text() === '选择')
+    expect(selectBtn).toBeTruthy()
+    // ReferenceSelector 不可见（仅 v-if=true 时渲染）
+    expect(wrapper.find('[data-testid="reference-selector"]').exists()).toBe(false)
+  })
+
+  it('REFERENCE 按钮 disabled 当 targetFormId 为空', () => {
+    const wrapper = mountField({ name: 'f7', type: 'REFERENCE' })
+    const buttons = wrapper.findAll('button')
+    const selectBtn = buttons.find((b) => b.text() === '选择')
+    expect(selectBtn).toBeTruthy()
+    expect(selectBtn!.attributes('disabled')).toBeDefined()
   })
 
   it('TABLE → 内嵌子表，渲染 subFields 表头 + 添加行按钮', () => {
@@ -138,6 +257,83 @@ describe('DynamicField — 8 类字段渲染', () => {
     expect(emitted).toBeTruthy()
     const rows = emitted![0][0] as Record<string, unknown>[]
     expect(rows.length).toBe(1)
+  })
+
+  /* ── TABLE 子字段按 type 分发 ── */
+
+  it('TABLE sub-field DICT 渲染 DictSelect', () => {
+    const wrapper = mountField(
+      {
+        name: 't1',
+        type: 'TABLE',
+        subFields: [{ name: 'col', type: 'DICT', dictType: 'some_dict' }],
+      },
+      [{ col: '' }],
+    )
+    expect(wrapper.find('[data-testid="dict-select"]').exists()).toBe(true)
+  })
+
+  it('TABLE sub-field NUMBER 渲染 el-input-number', () => {
+    const wrapper = mountField(
+      {
+        name: 't1',
+        type: 'TABLE',
+        subFields: [{ name: 'col', type: 'NUMBER' }],
+      },
+      [{ col: 0 }],
+    )
+    expect(wrapper.find('[data-testid="input-number"]').exists()).toBe(true)
+  })
+
+  it('TABLE sub-field DATE 渲染 el-date-picker', () => {
+    const wrapper = mountField(
+      {
+        name: 't1',
+        type: 'TABLE',
+        subFields: [{ name: 'col', type: 'DATE' }],
+      },
+      [{ col: '' }],
+    )
+    expect(wrapper.find('[data-testid="date-picker"]').exists()).toBe(true)
+  })
+
+  it('TABLE sub-field BOOL 渲染 el-switch', () => {
+    const wrapper = mountField(
+      {
+        name: 't1',
+        type: 'TABLE',
+        subFields: [{ name: 'col', type: 'BOOL' }],
+      },
+      [{ col: true }],
+    )
+    expect(wrapper.find('[data-testid="switch"]').exists()).toBe(true)
+  })
+
+  it('TABLE sub-field RICH_TEXT 渲染 el-input textarea', () => {
+    const wrapper = mountField(
+      {
+        name: 't1',
+        type: 'TABLE',
+        subFields: [{ name: 'col', type: 'RICH_TEXT' }],
+      },
+      [{ col: '' }],
+    )
+    const input = wrapper.findComponent({ name: 'ElInput' })
+    expect(input.exists()).toBe(true)
+    expect(input.props('type')).toBe('textarea')
+  })
+
+  it('TABLE sub-field REFERENCE 渲染 el-input 降级', () => {
+    const wrapper = mountField(
+      {
+        name: 't1',
+        type: 'TABLE',
+        subFields: [{ name: 'col', type: 'REFERENCE' }],
+      },
+      [{ col: '' }],
+    )
+    const input = wrapper.findComponent({ name: 'ElInput' })
+    expect(input.exists()).toBe(true)
   })
 })
 

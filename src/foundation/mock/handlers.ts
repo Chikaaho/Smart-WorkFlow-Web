@@ -26,11 +26,14 @@
 import type { MockHandler, MockMethod } from './index'
 import {
   MOCK_DICT_DATA,
+  MOCK_DICT_TYPES,
   MOCK_SESSION_DATA,
   MOCK_MENU_TREE,
   DEMO_FORM_KEY,
   MOCK_DEMO_FORM_DEFINITION,
   MOCK_DEMO_SUBMISSIONS,
+  MOCK_FORM_DATA_RECORDS,
+  MOCK_GENERIC_FORM_RECORDS,
 } from './seeds'
 
 // ─── 注册条目类型 ────────────────────────────────────────
@@ -89,6 +92,25 @@ export const mockRegistrations: MockRegistration[] = [
       code: 0,
       message: 'ok',
       data: MOCK_DICT_DATA[(params as Record<string, string>).type] ?? [],
+    }),
+  },
+
+  // ── 字典类型清单（设计器 DICT 绑定下拉） ────────────────────
+  // POST /api/system/dict/type/page?pageNum=&pageSize=
+  // 响应严格对齐后端分页原始形状 BackendPageResult<{code,name}> =
+  //   { records, total, pageNum, pageSize }（foundation/dict.listDictTypes 取 records）
+  {
+    method: 'POST',
+    pattern: '/api/system/dict/type/page',
+    handler: (_params, query) => ({
+      code: 0,
+      message: 'ok',
+      data: {
+        records: MOCK_DICT_TYPES,
+        total: MOCK_DICT_TYPES.length,
+        pageNum: Number(query.pageNum ?? 1),
+        pageSize: Number(query.pageSize ?? 1000),
+      },
     }),
   },
 
@@ -246,6 +268,56 @@ export const mockRegistrations: MockRegistration[] = [
         data: {
           records,
           total: records.length,
+          pageNum,
+          pageSize,
+        },
+      }
+    },
+  },
+
+  // ── 表单数据查询（页型 B 列表） ──────────────────────────────
+  // POST /api/form/data/{formKey}/query
+  // 请求: { pageNum, pageSize, filters: [{field, op, value}] }
+  // 响应: R<PageResult<Map>> — records, total, pageNum, pageSize
+  {
+    method: 'POST',
+    pattern: '/api/form/data/:formKey/query',
+    handler: (params, _query, body) => {
+      const formKey = (params as Record<string, string>).formKey
+      const req = (body as Record<string, unknown>) ?? {}
+      const pageNum = Number(req.pageNum ?? 1)
+      const pageSize = Number(req.pageSize ?? 10)
+
+      // demo-form 返回完整假数据；其他 formKey 返回通用假记录
+      const allRecords =
+        formKey === DEMO_FORM_KEY ? MOCK_FORM_DATA_RECORDS : MOCK_GENERIC_FORM_RECORDS
+
+      // 简易过滤（按 filters 条件逐个匹配）
+      const filters = (req.filters as Array<{ field: string; op: string; value: string }>) ?? []
+      let filtered = allRecords
+      for (const f of filters) {
+        if (!f.value) continue
+        filtered = filtered.filter((r) => {
+          const cell = r[f.field]
+          if (cell === null || cell === undefined) return false
+          const strCell = String(cell)
+          if (f.op === 'EQ') return strCell === f.value
+          if (f.op === 'LIKE') return strCell.includes(f.value)
+          // GE / LE 暂不实现 mock 级过滤（日期范围留手工验收分页）
+          return true
+        })
+      }
+
+      // 分页
+      const start = (pageNum - 1) * pageSize
+      const records = filtered.slice(start, start + pageSize)
+
+      return {
+        code: 0,
+        message: 'ok',
+        data: {
+          records,
+          total: filtered.length,
           pageNum,
           pageSize,
         },

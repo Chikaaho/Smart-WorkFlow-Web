@@ -32,24 +32,15 @@ describe('foundation/menu', () => {
 
     // 目录路径现在有路由（redirect）
     expect(paths).toContain('system')
-    expect(paths).toContain('lowcode')
 
     // 叶子路径仍在
     expect(paths).toContain('system/dict')
-    expect(paths).toContain('lowcode/overview')
-    expect(paths).toContain('lowcode/form')
 
     // 验证目录 redirect 指向首叶
     const systemRoute = routes.find((r) => r.path === 'system')
     expect(systemRoute).toBeDefined()
     expect(systemRoute!.redirect).toBe('system/dict')
     expect(systemRoute!.component).toBeUndefined()
-
-    const lowcodeRoute = routes.find((r) => r.path === 'lowcode')
-    expect(lowcodeRoute).toBeDefined()
-    // lowcode 首叶按 sort 顺序应为 overview（sort=1）
-    expect(lowcodeRoute!.redirect).toBe('lowcode/overview')
-    expect(lowcodeRoute!.component).toBeUndefined()
   })
 
   it('directory redirect respects sort order: lower sort number = first leaf', () => {

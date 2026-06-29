@@ -21,7 +21,7 @@ export const MOCK_SESSION_DATA = {
     tenantId: '1',
     avatar: null,
   },
-  permissions: ['system:view', 'lowcode:view', 'lowcode:form:view', 'workflow:view'],
+  permissions: ['system:view', 'form:view', 'form:form:view', 'workflow:view'],
   roles: ['admin'],
   superAdmin: true,
 }
@@ -59,40 +59,14 @@ export const MOCK_MENU_TREE = [
   {
     id: '2',
     parentId: null,
-    name: 'lowcode',
-    title: '低代码',
-    path: 'lowcode',
-    component: null,
-    icon: 'Grid',
+    name: 'form-designer',
+    title: '表单设计器',
+    path: 'form/designer',
+    component: 'form/views/FormDesigner',
+    icon: 'EditPen',
     sort: 2,
-    menuType: 0,
-    permission: 'lowcode:view',
-    children: [
-      {
-        id: '2-1',
-        parentId: '2',
-        name: 'lowcode-overview',
-        title: '低代码概览',
-        path: 'lowcode/overview',
-        component: 'lowcode/views/LowcodeHome',
-        icon: 'Document',
-        sort: 1,
-        menuType: 1,
-        permission: 'lowcode:view',
-      },
-      {
-        id: '2-2',
-        parentId: '2',
-        name: 'lowcode-form',
-        title: '表单设计',
-        path: 'lowcode/form',
-        component: 'lowcode/views/LowcodeForm',
-        icon: 'EditPen',
-        sort: 2,
-        menuType: 1,
-        permission: 'lowcode:form:view',
-      },
-    ],
+    menuType: 1,
+    permission: 'form:design:view',
   },
   {
     id: '3',
@@ -182,6 +156,17 @@ export const MOCK_DICT_DATA: Record<string, { label: string; code: string }[]> =
   ],
 }
 
+/**
+ * 示例字典类型清单种子（对齐后端 SysDictType 子集：code/name）。
+ * 供表单设计器 DICT 字段「绑定字典」下拉的 mock 验收使用；code 与 MOCK_DICT_DATA 的键对齐。
+ */
+export const MOCK_DICT_TYPES: { code: string; name: string }[] = [
+  { code: 'sex', name: '性别' },
+  { code: 'status', name: '审批状态' },
+  { code: 'dept', name: '部门' },
+  { code: 'leave_type', name: '请假类型' },
+]
+
 // ─── 演示表单「demo-form」定义 ──────────────────────────────
 
 /** 固定 formKey，仅供验收使用。 */
@@ -202,7 +187,7 @@ export const MOCK_DEMO_FORM_DEFINITION = {
     { name: 'days', label: '天数', type: 'NUMBER', required: true },
     { name: 'urgent', label: '是否加急', type: 'BOOL' },
     { name: 'reason', label: '事由', type: 'RICH_TEXT' },
-    { name: 'relatedRecord', label: '关联单号', type: 'REFERENCE' },
+    { name: 'relatedRecord', label: '关联单号', type: 'REFERENCE', targetFormId: 'demo-form' },
     {
       name: 'attachments',
       label: '附件',
@@ -277,5 +262,120 @@ export const MOCK_DEMO_SUBMISSIONS = [
       { fileName: '结婚证.jpg', fileSize: '3.1MB', fileType: '图片' },
       { fileName: '请假申请单.pdf', fileSize: '1.2MB', fileType: '文档' },
     ]),
+  },
+]
+
+/**
+ * 表单数据查询 mock 记录（与 MOCK_DEMO_FORM_DEFINITION 字段对齐）。
+ * 每个 record 包含 id + create_time + 所有业务列 + ref 列。
+ * 临时数据，上线后由后端真实数据替换。
+ */
+export const MOCK_FORM_DATA_RECORDS: Record<string, unknown>[] = [
+  {
+    id: 'fd_001',
+    applicant: '张三',
+    department: 'TECH',
+    leaveType: 'SICK',
+    leaveDate: '2026-06-20',
+    days: 2,
+    urgent: 1,
+    reason: '感冒发烧，需要休息',
+    ref_relatedRecord_id: null,
+    attachments: JSON.stringify([{ fileName: '诊断书.jpg', fileSize: '2.3MB', fileType: '图片' }]),
+    create_time: '2026-06-20 08:30:00',
+  },
+  {
+    id: 'fd_002',
+    applicant: '李四',
+    department: 'PRODUCT',
+    leaveType: 'ANNUAL',
+    leaveDate: '2026-06-21',
+    days: 5,
+    urgent: 0,
+    reason: '年假出游，已安排工作交接',
+    ref_relatedRecord_id: null,
+    attachments: JSON.stringify([]),
+    create_time: '2026-06-21 09:15:00',
+  },
+  {
+    id: 'fd_003',
+    applicant: '王五',
+    department: 'DESIGN',
+    leaveType: 'PERSONAL',
+    leaveDate: '2026-06-25',
+    days: 1,
+    urgent: 0,
+    reason: '家里有事需要处理',
+    ref_relatedRecord_id: null,
+    attachments: JSON.stringify([
+      { fileName: '申请说明.docx', fileSize: '0.5MB', fileType: '文档' },
+    ]),
+    create_time: '2026-06-25 10:00:00',
+  },
+  {
+    id: 'fd_004',
+    applicant: '赵六',
+    department: 'TECH',
+    leaveType: 'COMPENSATORY',
+    leaveDate: '2026-06-28',
+    days: 0.5,
+    urgent: 0,
+    reason: '调休半天',
+    ref_relatedRecord_id: null,
+    attachments: JSON.stringify([]),
+    create_time: '2026-06-28 14:20:00',
+  },
+  {
+    id: 'fd_005',
+    applicant: '陈七',
+    department: 'HR',
+    leaveType: 'MARRIAGE',
+    leaveDate: '2026-07-01',
+    days: 15,
+    urgent: 1,
+    reason: '婚假申请',
+    ref_relatedRecord_id: null,
+    attachments: JSON.stringify([
+      { fileName: '结婚证.jpg', fileSize: '3.1MB', fileType: '图片' },
+      { fileName: '请假申请单.pdf', fileSize: '1.2MB', fileType: '文档' },
+    ]),
+    create_time: '2026-07-01 07:45:00',
+  },
+]
+
+/**
+ * 通用表单假记录（对齐 handlers.ts 中 generic definition 的字段）。
+ * 供 REFERENCE 选择器在目标表单非 demo-form 时也有数据可展示。
+ * 字段：id, name(TEXT), department(DICT dept), date(DATE), amount(NUMBER),
+ *       remark(RICH_TEXT), create_time。
+ * 临时数据，上线后由后端真实数据替换。
+ */
+export const MOCK_GENERIC_FORM_RECORDS: Record<string, unknown>[] = [
+  {
+    id: 'gen_001',
+    name: '张三',
+    department: 'TECH',
+    date: '2026-06-20',
+    amount: 1500,
+    remark: '通用记录一，用于测试关联选择器',
+    create_time: '2026-06-20 08:30:00',
+  },
+  {
+    id: 'gen_002',
+    name: '李四',
+    department: 'PRODUCT',
+    date: '2026-06-21',
+    amount: 3200,
+    remark: '通用记录二，用于测试关联选择器',
+    create_time: '2026-06-21 09:15:00',
+  },
+  {
+    id: 'gen_003',
+    name: '王五',
+    department: 'DESIGN',
+    date: '2026-06-22',
+    amount: 800,
+    remark: '通用记录三，用于测试关联选择器',
+    create_time: '2026-06-22 10:00:00',
   },
 ]

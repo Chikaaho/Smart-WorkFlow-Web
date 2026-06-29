@@ -15,7 +15,7 @@ import {
   normalizeSubmitData,
 } from './form'
 
-describe('modules/lowcode/api/form', () => {
+describe('modules/form/api/form', () => {
   beforeEach(() => {
     vi.mocked(request).mockReset()
     vi.mocked(parseDefinition).mockReset()

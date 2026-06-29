@@ -10,6 +10,15 @@ describe('foundation/request/error-code-map', () => {
       expect(ERROR_CODE_MAP[1403]).toMatch(/字典/)
     })
 
+    it('covers all 6 form data query codes (1500–1505)', () => {
+      expect(ERROR_CODE_MAP[1500]).toMatch(/表单/)
+      expect(ERROR_CODE_MAP[1501]).toMatch(/字段/)
+      expect(ERROR_CODE_MAP[1502]).toMatch(/筛选/)
+      expect(ERROR_CODE_MAP[1503]).toMatch(/操作符/)
+      expect(ERROR_CODE_MAP[1504]).toMatch(/操作符/)
+      expect(ERROR_CODE_MAP[1505]).toMatch(/引用/)
+    })
+
     it('has non-empty string values for all keys', () => {
       for (const msg of Object.values(ERROR_CODE_MAP)) {
         expect(msg).toBeTruthy()

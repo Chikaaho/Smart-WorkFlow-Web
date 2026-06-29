@@ -96,6 +96,57 @@ export function normalizeSubmitData(
  * GET /api/form/submit/by-key/{formKey}/list  query: pageNum, pageSize
  * 返回: PageResult<Record<string, unknown>>
  */
+/**
+ * seam: 后端端点未就绪，形状已锁，上线即通。
+ * POST /api/form/data/{formKey}/query
+ * 请求: { pageNum, pageSize, filters: [{field, op, value}] }
+ * 响应: R<PageResult<Map>>  PageResult 中的 records 字段映射为 list
+ *
+ * 错误码: 1500 表单不存在/未发布 · 1501 字段未知 · 1502 不可筛选
+ *         1503 op×type 不匹配 · 1504 op 不支持
+ */
+export interface QueryFilter {
+  field: string
+  op: 'EQ' | 'LIKE' | 'GE' | 'LE'
+  value: string
+}
+
+export interface QueryRequest {
+  pageNum: number
+  pageSize: number
+  filters: QueryFilter[]
+}
+
+export async function queryFormData(
+  formKey: string,
+  query: QueryRequest,
+): Promise<PageResult<Record<string, unknown>>> {
+  const raw = await request<BackendPageResult<Record<string, unknown>>>({
+    method: 'POST',
+    url: `/form/data/${formKey}/query`,
+    data: query,
+  })
+  return {
+    list: raw.records,
+    total: raw.total,
+    pageNum: raw.pageNum,
+    pageSize: raw.pageSize,
+  }
+}
+
+/**
+ * DELETE /api/form/data/{formKey}/{recordId}
+ * 删除指定表单数据记录。
+ * 幂等:删不存在/已删也返成功。
+ * 错误码:1505 记录被其他表单引用,不能删除。
+ */
+export async function deleteFormData(formKey: string, recordId: string): Promise<void> {
+  return request<void>({
+    method: 'DELETE',
+    url: `/form/data/${formKey}/${recordId}`,
+  })
+}
+
 export async function listSubmissions(
   formKey: string,
   page: PageQuery,

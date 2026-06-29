@@ -27,6 +27,7 @@
     "expr-eval-fork": "^3.0.3",
     "pinia": "^3.0.4",
     "vue": "^3.5.38",
+    "vue-draggable-plus": "^0.6.1",
     "vue-i18n": "^11.4.6",
     "vue-router": "^5.1.0"
   },

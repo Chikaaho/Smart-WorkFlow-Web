@@ -238,8 +238,9 @@ function mapFieldToCreateRule(field: FormSchemaField): Record<string, unknown> |
 /**
  * TABLE 子字段 → form-create 子规则。
  *
- * SubField 只携带 name/type，缺少 dictType 等元数据，因此 DICT / REFERENCE / TABLE
- * 子类型均回退为普通文本输入。
+ * TEXT/RICH_TEXT/NUMBER/DATE/BOOL/DICT 按类型映射；
+ * DICT 子字段透传 __dictType__ + renderAs 元数据（P3-1b）。
+ * REFERENCE / TABLE 回退为普通文本输入（TABLE 不递归）。
  */
 function mapSubFieldToCreateRule(sf: TableSubField): Record<string, unknown> {
   const rule: Record<string, unknown> = {
@@ -273,12 +274,19 @@ function mapSubFieldToCreateRule(sf: TableSubField): Record<string, unknown> {
       break
 
     case 'DICT':
+      rule.type = 'select'
+      rule.options = []
+      rule.props = { clearable: true }
+      ;(rule as Record<string, unknown>).__dictType__ = sf.dictType ?? ''
+      if (sf.renderAs) {
+        ;(rule as Record<string, unknown>).renderAs = sf.renderAs
+      }
+      break
+
     case 'REFERENCE':
     case 'TABLE':
-      // DICT: 子字段无 dictType 信息，回退文本输入
       // REFERENCE: 子字段无关联上下文，回退文本输入
       // TABLE: 不支持嵌套子表，回退文本输入
-      // TODO(sub-field): 子字段 dictType/关联选择/嵌套子表支持
       break
   }
 

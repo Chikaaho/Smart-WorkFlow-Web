@@ -4,19 +4,41 @@
  * 按 field.type 判别式渲染对应 Element Plus 控件，不含布局壳。
  * 数据外部进（modelValue），更新通过 emit 出——零 onMounted 拉数据。
  *
- * 8 类渲染链提炼自 LowcodeFormRender.vue（demo 保留不修改）：
+ * 8 类渲染链提炼自 FormRender.vue（demo 保留不修改）：
  *   TEXT→el-input / RICH_TEXT→el-input textarea / NUMBER→el-input-number
  *   DATE→el-date-picker(valueFormat YYYY-MM-DD) / BOOL→el-switch
- *   DICT→DictSelect(注入 dictType) / REFERENCE→el-input 降级 / TABLE→原生 table
+ *   DICT→DictSelect(注入 dictType) / REFERENCE→ReferenceSelector(只读输入框+弹窗选择器) / TABLE→原生 table
  */
-import { computed } from 'vue'
-import type { FormSchemaField } from '@/contracts/form-schema'
+import { computed, ref } from 'vue'
+import type { FormSchemaField, IdValueProperty } from '@/contracts/form-schema'
 import DictSelect from '@/foundation/dict/DictSelect.vue'
+import ReferenceSelector from '@/modules/form/components/ReferenceSelector.vue'
 
-const props = defineProps<{
-  field: FormSchemaField
-  modelValue: unknown
-}>()
+const props = withDefaults(
+  defineProps<{
+    field: FormSchemaField
+    modelValue: unknown
+    /**
+     * 只读模式：
+     * - TEXT / RICH_TEXT → readonly
+     * - NUMBER / DATE / BOOL / DICT → disabled
+     * - REFERENCE → 只读输入框，禁用「选择」按钮
+     * - TABLE → 隐藏添加/删除按钮，子控件 disabled
+     */
+    readonly?: boolean
+    /**
+     * REFERENCE 字段回显标签（显示名）。
+     * 记录加载时由父页面 resolveReferenceDisplay 解析后传入，
+     * 覆盖内置的 referenceDisplayValue。
+     * 只影响「显示」，底层 v-model 仍为 id。
+     */
+    referenceLabel?: string
+  }>(),
+  {
+    readonly: false,
+    referenceLabel: '',
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: unknown]
@@ -53,6 +75,20 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
     tableRows.value.map((r, i) => (i === rowIdx ? { ...r, [subName]: value } : r)),
   )
 }
+
+/* ── REFERENCE 选择器状态 ── */
+const referenceSelectorVisible = ref(false)
+/** 从选择器回填的显示值（UI 用），v1 编辑回显无法反查时仍显示原始 ID。 */
+const referenceDisplayValue = ref('')
+
+const referenceDisplayText = computed(
+  () => props.referenceLabel || referenceDisplayValue.value || strVal.value,
+)
+
+function onReferenceSelect(payload: IdValueProperty) {
+  referenceDisplayValue.value = payload.value
+  emit('update:modelValue', payload.id)
+}
 </script>
 
 <template>
@@ -67,6 +103,7 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
     <el-input
       v-if="field.type === 'TEXT'"
       :model-value="strVal"
+      :readonly="readonly"
       @update:model-value="emit('update:modelValue', $event)"
     />
 
@@ -76,6 +113,7 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
       type="textarea"
       :rows="4"
       :model-value="strVal"
+      :readonly="readonly"
       @update:model-value="emit('update:modelValue', $event)"
     />
 
@@ -83,6 +121,7 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
     <el-input-number
       v-else-if="field.type === 'NUMBER'"
       :model-value="numVal"
+      :disabled="readonly"
       @update:model-value="emit('update:modelValue', $event)"
     />
 
@@ -91,6 +130,7 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
       v-else-if="field.type === 'DATE'"
       value-format="YYYY-MM-DD"
       :model-value="strVal"
+      :disabled="readonly"
       @update:model-value="emit('update:modelValue', $event)"
     />
 
@@ -98,24 +138,40 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
     <el-switch
       v-else-if="field.type === 'BOOL'"
       :model-value="boolVal"
+      :disabled="readonly"
       @update:model-value="emit('update:modelValue', $event)"
     />
 
-    <!-- DICT（走 DictSelect 通道） -->
+    <!-- DICT（走 DictSelect 通道，支持 select/radio 变体） -->
     <DictSelect
       v-else-if="field.type === 'DICT'"
       :type="field.dictType"
+      :render-as="field.renderAs"
       :model-value="strVal"
+      :disabled="readonly"
       @update:model-value="emit('update:modelValue', $event)"
     />
 
-    <!-- REFERENCE（降级 input 占位） -->
-    <el-input
-      v-else-if="field.type === 'REFERENCE'"
-      :model-value="strVal"
-      placeholder="引用类型（文本占位）"
-      @update:model-value="emit('update:modelValue', $event)"
-    />
+    <!-- REFERENCE（关联选择器） -->
+    <div v-else-if="field.type === 'REFERENCE'" class="dynamic-field__reference">
+      <el-input :model-value="referenceDisplayText" placeholder="请选择关联记录" readonly>
+        <template #append>
+          <el-button
+            :disabled="readonly || !field.targetFormId"
+            @click="referenceSelectorVisible = true"
+          >
+            选择
+          </el-button>
+        </template>
+      </el-input>
+      <ReferenceSelector
+        v-if="referenceSelectorVisible"
+        v-model:visible="referenceSelectorVisible"
+        :target-form-key="field.targetFormId ?? ''"
+        :selected-id="strVal"
+        @select="onReferenceSelect"
+      />
+    </div>
 
     <!-- TABLE（内嵌子表，可增删行） -->
     <div v-else-if="field.type === 'TABLE'" class="dynamic-field__table">
@@ -123,25 +179,82 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
         <thead>
           <tr>
             <th v-for="sf in field.subFields" :key="sf.name">{{ sf.name }}</th>
-            <th>操作</th>
+            <th v-if="!readonly">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(_, rowIdx) in tableRows" :key="rowIdx">
             <td v-for="sf in field.subFields" :key="sf.name">
+              <!-- TEXT -->
               <el-input
+                v-if="sf.type === 'TEXT'"
                 size="small"
                 :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                :readonly="readonly"
+                @update:model-value="updateCell(rowIdx, sf.name, $event)"
+              />
+              <!-- RICH_TEXT（降级 textarea） -->
+              <el-input
+                v-else-if="sf.type === 'RICH_TEXT'"
+                size="small"
+                type="textarea"
+                :rows="3"
+                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                :readonly="readonly"
+                @update:model-value="updateCell(rowIdx, sf.name, $event)"
+              />
+              <!-- NUMBER -->
+              <el-input-number
+                v-else-if="sf.type === 'NUMBER'"
+                size="small"
+                :model-value="Number(tableRows[rowIdx]?.[sf.name] ?? 0)"
+                :disabled="readonly"
+                @update:model-value="updateCell(rowIdx, sf.name, $event)"
+              />
+              <!-- DATE -->
+              <el-date-picker
+                v-else-if="sf.type === 'DATE'"
+                size="small"
+                value-format="YYYY-MM-DD"
+                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                :disabled="readonly"
+                @update:model-value="updateCell(rowIdx, sf.name, $event)"
+              />
+              <!-- BOOL -->
+              <el-switch
+                v-else-if="sf.type === 'BOOL'"
+                size="small"
+                :model-value="Boolean(tableRows[rowIdx]?.[sf.name])"
+                :disabled="readonly"
+                @update:model-value="updateCell(rowIdx, sf.name, $event)"
+              />
+              <!-- DICT（透传子字段 dictType + renderAs） -->
+              <DictSelect
+                v-else-if="sf.type === 'DICT'"
+                size="small"
+                :type="sf.dictType ?? ''"
+                :render-as="sf.renderAs"
+                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                :disabled="readonly"
+                @update:model-value="updateCell(rowIdx, sf.name, $event)"
+              />
+              <!-- REFERENCE（降级 input 占位）/ TABLE（不递归）/ fallback -->
+              <el-input
+                v-else
+                size="small"
+                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                placeholder="引用类型（文本占位）"
+                :readonly="readonly"
                 @update:model-value="updateCell(rowIdx, sf.name, $event)"
               />
             </td>
-            <td>
+            <td v-if="!readonly">
               <el-button size="small" type="danger" @click="removeRow(rowIdx)">删除</el-button>
             </td>
           </tr>
         </tbody>
       </table>
-      <el-button size="small" @click="addRow">+ 添加行</el-button>
+      <el-button v-if="!readonly" size="small" @click="addRow">+ 添加行</el-button>
     </div>
   </div>
 </template>
@@ -212,5 +325,10 @@ function updateCell(rowIdx: number, subName: string, value: unknown) {
   font-size: var(--sw-font-caption);
   font-weight: var(--sw-font-weight-caption);
   background: var(--sw-fill-base);
+}
+
+/* ── REFERENCE 选择器 ── */
+.dynamic-field__reference {
+  width: 100%;
 }
 </style>

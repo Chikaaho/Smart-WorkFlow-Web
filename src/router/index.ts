@@ -30,16 +30,16 @@ const routes: RouteRecordRaw[] = [
     // 直达 URL 可进,受 authGuard 保护,无需纳入后端菜单树。
     children: [
       {
-        path: 'lowcode/form-render/:formKey',
-        name: 'lowcode-form-render',
-        component: () => import('@/modules/lowcode/views/LowcodeFormRender.vue'),
+        path: 'form/form-render/:formKey',
+        name: 'form-render',
+        component: () => import('@/modules/form/views/FormRender.vue'),
         meta: { title: '表单渲染' },
       },
       {
-        path: 'lowcode/form-list/:formKey',
-        name: 'lowcode-form-list',
-        component: () => import('@/modules/lowcode/views/LowcodeFormList.vue'),
-        meta: { title: '提交记录' },
+        path: 'form/form-data/:formKey',
+        name: 'form-data',
+        component: () => import('@/modules/form/views/FormData.vue'),
+        meta: { title: '表单数据' },
       },
     ],
   },
