@@ -11,14 +11,16 @@ vi.mock('vue-router', () => ({
 vi.mock('@/modules/form/api/form', () => ({
   getFormDefinition: vi.fn(),
   submitForm: vi.fn(),
-  queryFormData: vi.fn(),
+  getFormData: vi.fn(),
+  updateFormData: vi.fn(),
+  normalizeSubmitData: vi.fn((data: Record<string, unknown>) => data),
 }))
 
 vi.mock('@/modules/form/utils/resolve-reference-display', () => ({
   resolveReferenceDisplay: vi.fn().mockResolvedValue('ref-display'),
 }))
 
-import { getFormDefinition, queryFormData } from '@/modules/form/api/form'
+import { getFormDefinition, getFormData } from '@/modules/form/api/form'
 import FormRender from './FormRender.vue'
 
 /* ── 通用 stubs ── */
@@ -41,7 +43,7 @@ const baseStubs = {
 describe('FormRender', () => {
   beforeEach(() => {
     vi.mocked(getFormDefinition).mockReset()
-    vi.mocked(queryFormData).mockReset()
+    vi.mocked(getFormData).mockReset()
     mockQuery = {}
   })
 
@@ -124,12 +126,7 @@ describe('FormRender', () => {
       title: '查看表单',
       fields: [{ name: 'x', type: 'TEXT', required: false }],
     })
-    vi.mocked(queryFormData).mockResolvedValueOnce({
-      list: [{ id: 'rec_001', x: 'hello' }],
-      total: 1,
-      pageNum: 1,
-      pageSize: 1,
-    })
+    vi.mocked(getFormData).mockResolvedValueOnce({ id: 'rec_001', version: 1, x: 'hello' })
 
     const wrapper = mount(FormRender, {
       global: { stubs: baseStubs },
@@ -154,11 +151,11 @@ describe('FormRender', () => {
         { name: 'related', type: 'REFERENCE', targetFormId: 'other-form', required: false },
       ],
     })
-    vi.mocked(queryFormData).mockResolvedValueOnce({
-      list: [{ id: 'rec_001', name: '张三', ref_related_id: 'ref_001' }],
-      total: 1,
-      pageNum: 1,
-      pageSize: 1,
+    vi.mocked(getFormData).mockResolvedValueOnce({
+      id: 'rec_001',
+      version: 1,
+      name: '张三',
+      ref_related_id: 'ref_001',
     })
 
     const wrapper = mount(FormRender, {

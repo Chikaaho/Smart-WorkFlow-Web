@@ -73,7 +73,7 @@ export function normalizeSubmitData(
   for (const field of fields) {
     const value = data[field.name]
     if (value === undefined || value === null) {
-      result[field.name] = ''
+      result[field.name] = field.type === 'TABLE' ? [] : ''
       continue
     }
 
@@ -84,6 +84,11 @@ export function normalizeSubmitData(
       case 'DATE':
         result[field.name] = String(value)
         break
+      case 'TABLE': {
+        const rows = Array.isArray(value) ? (value as Record<string, unknown>[]) : []
+        result[field.name] = rows.map(({ _rowAction, _rowId, ...clean }) => clean)
+        break
+      }
       default:
         result[field.name] = value
     }
@@ -117,6 +122,23 @@ export interface QueryRequest {
   filters: QueryFilter[]
 }
 
+/** 子表行变动动作类型（对齐后端 SubTableRowAction.action） */
+export type SubTableRowActionType = 'ADD' | 'UPDATE' | 'DELETE' | 'UNCHANGED'
+
+/** 子表行变动描述（对齐后端 SubTableRowAction） */
+export interface SubTableRowAction {
+  action: SubTableRowActionType
+  id?: string
+  data?: Record<string, unknown>
+}
+
+/** 更新请求体 */
+export interface UpdateFormDataPayload {
+  data: Record<string, unknown>
+  version: number
+  subTableRows: Record<string, SubTableRowAction[]>
+}
+
 export async function queryFormData(
   formKey: string,
   query: QueryRequest,
@@ -144,6 +166,37 @@ export async function deleteFormData(formKey: string, recordId: string): Promise
   return request<void>({
     method: 'DELETE',
     url: `/form/data/${formKey}/${recordId}`,
+  })
+}
+
+/**
+ * 直连: GET /api/form/data/{formKey}/{recordId}
+ * 返回: R<Map> 含 id / version / 审计列 / 业务字段 / 子表行（每行带行 id）
+ */
+export async function getFormData(
+  formKey: string,
+  recordId: string,
+): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>({
+    method: 'GET',
+    url: `/form/data/${formKey}/${recordId}`,
+  })
+}
+
+/**
+ * 直连: PUT /api/form/data/{formKey}/{recordId}
+ * 请求: { data, version, subTableRows }
+ * 错误码: 1507 记录不存在/已删 · 1508 版本冲突
+ */
+export async function updateFormData(
+  formKey: string,
+  recordId: string,
+  payload: UpdateFormDataPayload,
+): Promise<void> {
+  return request<void>({
+    method: 'PUT',
+    url: `/form/data/${formKey}/${recordId}`,
+    data: payload,
   })
 }
 

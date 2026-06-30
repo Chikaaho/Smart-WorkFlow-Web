@@ -26,9 +26,30 @@ const props = withDefaults(
   defineProps<{
     /** 已发布表单：禁用拖拽排序、隐藏删除、不响应选中。 */
     readonly?: boolean
+    /**
+     * SortableJS group 名。缺省 'designer-fields'（主画布）。
+     * 盖层子画布传独立 group（如 'designer-subfields'），与主画布拖放严格隔离、互不串。
+     */
+    group?: string
   }>(),
-  { readonly: false },
+  { readonly: false, group: 'designer-fields' },
 )
+
+const emit = defineEmits<{
+  /** 点 TABLE 占位块的「编辑子表」入口：宿主据此打开盖层子画布编辑该子表的子字段。 */
+  editTable: [id: string]
+}>()
+
+/** TABLE 字段当前子字段数（占位块展示「N 个子字段」）；非 TABLE 恒 0。 */
+function subFieldCount(item: DesignerItem): number {
+  return item.field.type === 'TABLE' ? item.field.subFields.length : 0
+}
+
+/** 打开子表盖层编辑（已发布只读时不响应，宿主入口也已禁用）。 */
+function editTable(id: string) {
+  if (props.readonly) return
+  emit('editTable', id)
+}
 
 function typeLabel(item: DesignerItem): string {
   return getFieldTypeDescriptor(item.field.type)?.label ?? item.field.type
@@ -66,7 +87,7 @@ function remove(id: string) {
   <section class="canvas">
     <VueDraggable
       v-model="items"
-      :group="{ name: 'designer-fields', pull: true, put: true }"
+      :group="{ name: group, pull: true, put: true }"
       :animation="150"
       item-key="id"
       handle=".field-shell__handle"
@@ -96,9 +117,26 @@ function remove(id: string) {
             @click.stop="remove(item.id)"
           />
         </div>
-        <!-- 真控件长相（design 态 pointer-events:none，整块作为选中热区） -->
+        <!-- TABLE：占位块 + 「编辑子表」入口（不真渲染内部表格、不发请求）；其余字段走真控件长相。 -->
         <div class="field-shell__control">
-          <FormPreview :schema="schemaFor(item)" mode="design" />
+          <div v-if="item.field.type === 'TABLE'" class="field-shell__table">
+            <div class="field-shell__table-info">
+              <span class="field-shell__table-label">{{
+                item.field.label || item.field.name
+              }}</span>
+              <span class="field-shell__table-count">{{ subFieldCount(item) }} 个子字段</span>
+            </div>
+            <el-button
+              class="field-shell__table-edit"
+              size="small"
+              :disabled="readonly"
+              @click.stop="editTable(item.id)"
+            >
+              编辑子表
+            </el-button>
+          </div>
+          <!-- 真控件长相（design 态 pointer-events:none，整块作为选中热区） -->
+          <FormPreview v-else :schema="schemaFor(item)" mode="design" />
         </div>
       </div>
     </VueDraggable>
@@ -190,6 +228,34 @@ function remove(id: string) {
 
 .field-shell__del {
   flex: 0 0 auto;
+}
+
+.field-shell__table {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sw-space-12);
+  padding: var(--sw-space-12) var(--sw-space-16);
+  border: 1px dashed var(--sw-border-base);
+  border-radius: var(--sw-radius-base);
+  background: var(--sw-fill-base);
+}
+
+.field-shell__table-info {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sw-space-8);
+  min-width: 0;
+}
+
+.field-shell__table-label {
+  font-size: var(--sw-font-body);
+  color: var(--sw-text-primary);
+}
+
+.field-shell__table-count {
+  font-size: var(--sw-font-caption);
+  color: var(--sw-text-secondary);
 }
 
 .canvas__empty {

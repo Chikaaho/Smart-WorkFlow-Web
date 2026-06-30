@@ -16,6 +16,8 @@ export interface FieldPatch {
   length?: number
   dictType?: string
   renderAs?: 'select' | 'radio'
+  /** REFERENCE 字段的目标表单 formKey（非 id）。红线：存 formKey，禁存 UUID。 */
+  targetFormId?: string
 }
 
 /**

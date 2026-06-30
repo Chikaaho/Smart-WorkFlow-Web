@@ -128,6 +128,18 @@ export const MOCK_MENU_TREE = [
     menuType: 1,
     permission: 'openapi:view',
   },
+  {
+    id: '8',
+    parentId: null,
+    name: 'form-def-list',
+    title: '表单管理',
+    path: 'form/form-def-list',
+    component: 'form/views/FormDefList',
+    icon: 'Document',
+    sort: 8,
+    menuType: 1,
+    permission: 'form:view',
+  },
 ]
 
 /** 示例字典种子：value 字段名 code（对齐 {@link DictItemDTO}）。 */
@@ -273,6 +285,7 @@ export const MOCK_DEMO_SUBMISSIONS = [
 export const MOCK_FORM_DATA_RECORDS: Record<string, unknown>[] = [
   {
     id: 'fd_001',
+    version: 1,
     applicant: '张三',
     department: 'TECH',
     leaveType: 'SICK',
@@ -286,6 +299,7 @@ export const MOCK_FORM_DATA_RECORDS: Record<string, unknown>[] = [
   },
   {
     id: 'fd_002',
+    version: 1,
     applicant: '李四',
     department: 'PRODUCT',
     leaveType: 'ANNUAL',
@@ -299,6 +313,7 @@ export const MOCK_FORM_DATA_RECORDS: Record<string, unknown>[] = [
   },
   {
     id: 'fd_003',
+    version: 1,
     applicant: '王五',
     department: 'DESIGN',
     leaveType: 'PERSONAL',
@@ -314,6 +329,7 @@ export const MOCK_FORM_DATA_RECORDS: Record<string, unknown>[] = [
   },
   {
     id: 'fd_004',
+    version: 1,
     applicant: '赵六',
     department: 'TECH',
     leaveType: 'COMPENSATORY',
@@ -327,6 +343,7 @@ export const MOCK_FORM_DATA_RECORDS: Record<string, unknown>[] = [
   },
   {
     id: 'fd_005',
+    version: 1,
     applicant: '陈七',
     department: 'HR',
     leaveType: 'MARRIAGE',
@@ -353,6 +370,7 @@ export const MOCK_FORM_DATA_RECORDS: Record<string, unknown>[] = [
 export const MOCK_GENERIC_FORM_RECORDS: Record<string, unknown>[] = [
   {
     id: 'gen_001',
+    version: 1,
     name: '张三',
     department: 'TECH',
     date: '2026-06-20',
@@ -362,6 +380,7 @@ export const MOCK_GENERIC_FORM_RECORDS: Record<string, unknown>[] = [
   },
   {
     id: 'gen_002',
+    version: 1,
     name: '李四',
     department: 'PRODUCT',
     date: '2026-06-21',
@@ -371,6 +390,7 @@ export const MOCK_GENERIC_FORM_RECORDS: Record<string, unknown>[] = [
   },
   {
     id: 'gen_003',
+    version: 1,
     name: '王五',
     department: 'DESIGN',
     date: '2026-06-22',
@@ -397,3 +417,61 @@ export const MOCK_FORM_DEF_STORE: Map<
     definition: string
   }
 > = new Map()
+
+// ─── MOCK_FORM_DEF_STORE 种子数据 ───────────────────────────
+// 临时数据，对齐分页接口 handler 的响应形状预期。
+// 与第四刀 create handler 共用同一 store：设计器新建的草稿自动出现在列表。
+// 种子包含 DRAFT + PUBLISHED 各至少一条，供列表页验收状态标签色。
+
+export const MOCK_FORM_DEF_SEEDS: Array<{
+  id: string
+  formKey: string
+  name: string
+  status: 'DRAFT' | 'PUBLISHED'
+  definition: string
+}> = [
+  {
+    id: 'seed-def-001',
+    formKey: 'leave-request',
+    name: '请假申请单',
+    status: 'PUBLISHED',
+    definition: JSON.stringify(MOCK_DEMO_FORM_DEFINITION),
+  },
+  {
+    id: 'seed-def-002',
+    formKey: 'expense-report',
+    name: '费用报销单',
+    status: 'DRAFT',
+    definition: JSON.stringify({ title: '费用报销单', fields: [] }),
+  },
+  {
+    id: 'seed-def-003',
+    formKey: 'purchase-order',
+    name: '采购订单',
+    status: 'PUBLISHED',
+    definition: JSON.stringify({ title: '采购订单', fields: [] }),
+  },
+  {
+    id: 'seed-def-004',
+    formKey: 'travel-reimbursement',
+    name: '差旅报销',
+    status: 'DRAFT',
+    definition: JSON.stringify({ title: '差旅报销', fields: [] }),
+  },
+  {
+    id: 'seed-def-005',
+    formKey: 'contract-approval',
+    name: '合同审批',
+    status: 'PUBLISHED',
+    definition: JSON.stringify({ title: '合同审批', fields: [] }),
+  },
+]
+
+function initFormDefStore(): void {
+  if (MOCK_FORM_DEF_STORE.size === 0) {
+    for (const seed of MOCK_FORM_DEF_SEEDS) {
+      MOCK_FORM_DEF_STORE.set(seed.id, seed)
+    }
+  }
+}
+initFormDefStore()

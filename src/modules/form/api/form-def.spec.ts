@@ -100,6 +100,66 @@ describe('modules/form/api/form-def', () => {
     expect(result.status).toBe('PUBLISHED')
   })
 
+  /* ---- pageFormDefs ---- */
+
+  it('pageFormDefs sends GET /form/def/page with pageNum+pageSize params', async () => {
+    const pageResult = { records: [], total: 0, pageNum: 1, pageSize: 10 }
+    mockRequest.mockResolvedValueOnce(pageResult)
+
+    const result = await formDefApi.pageFormDefs({ pageNum: 1, pageSize: 10 })
+
+    expect(mockRequest).toHaveBeenCalledTimes(1)
+    expect(mockRequest).toHaveBeenCalledWith({
+      method: 'GET',
+      url: '/form/def/page',
+      params: { pageNum: 1, pageSize: 10 },
+    })
+    expect(result).toEqual({ list: [], total: 0, pageNum: 1, pageSize: 10 })
+  })
+
+  it('pageFormDefs passes keyword param when provided', async () => {
+    const pageResult = { records: [], total: 0, pageNum: 1, pageSize: 10 }
+    mockRequest.mockResolvedValueOnce(pageResult)
+
+    await formDefApi.pageFormDefs({ pageNum: 1, pageSize: 10 }, '请假')
+
+    expect(mockRequest).toHaveBeenCalledTimes(1)
+    expect(mockRequest).toHaveBeenCalledWith({
+      method: 'GET',
+      url: '/form/def/page',
+      params: { pageNum: 1, pageSize: 10, keyword: '请假' },
+    })
+  })
+
+  it('pageFormDefs omits keyword param when undefined', async () => {
+    const pageResult = {
+      records: [{ id: '1', formKey: 'fk', name: 'F', status: 'DRAFT' as const }],
+      total: 1,
+      pageNum: 1,
+      pageSize: 10,
+    }
+    mockRequest.mockResolvedValueOnce(pageResult)
+
+    const result = await formDefApi.pageFormDefs({ pageNum: 1, pageSize: 10 })
+
+    expect(mockRequest).toHaveBeenCalledTimes(1)
+    expect(result.list).toHaveLength(1)
+    expect(result.list[0].formKey).toBe('fk')
+  })
+
+  it('pageFormDefs adapts records→list from backend response', async () => {
+    const records = [
+      { id: 'd1', formKey: 'f1', name: 'F1', status: 'DRAFT' as const },
+      { id: 'd2', formKey: 'f2', name: 'F2', status: 'PUBLISHED' as const },
+    ]
+    mockRequest.mockResolvedValueOnce({ records, total: 2, pageNum: 1, pageSize: 10 })
+
+    const result = await formDefApi.pageFormDefs({ pageNum: 1, pageSize: 10 })
+
+    expect(result.list).toEqual(records)
+    expect(result.total).toBe(2)
+  })
+
   /* ---- full lifecycle sequence ---- */
 
   it('supports full draft → save → publish lifecycle sequence', async () => {

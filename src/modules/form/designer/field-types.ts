@@ -6,6 +6,7 @@ import NumberConfig from './config/NumberConfig.vue'
 import DateConfig from './config/DateConfig.vue'
 import BoolConfig from './config/BoolConfig.vue'
 import DictConfig from './config/DictConfig.vue'
+import ReferenceConfig from './config/ReferenceConfig.vue'
 
 /**
  * 字段类型注册表（设计器扩展插槽 · 单一数据源）。
@@ -93,9 +94,9 @@ export const FIELD_TYPE_REGISTRY: readonly FieldTypeDescriptor[] = [
     type: 'REFERENCE',
     label: '引用',
     icon: 'Connection',
-    // REFERENCE 的 targetFormId 可选，配置面板（第二刀）再选目标表单。
+    // REFERENCE 的 targetFormId 可选，配置面板再选目标表单。
     createDefault: (name) => ({ ...baseField('REFERENCE', name, '引用') }) as FormSchemaField,
-    configComponent: null,
+    configComponent: ReferenceConfig,
   },
   {
     type: 'TABLE',

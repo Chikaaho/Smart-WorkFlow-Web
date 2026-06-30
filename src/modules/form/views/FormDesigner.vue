@@ -13,10 +13,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormSchema } from '@/contracts/form-schema'
+import type { FormSchema, TableSubField } from '@/contracts/form-schema'
 import FieldPalette from '../designer/FieldPalette.vue'
 import DesignerCanvas from '../designer/DesignerCanvas.vue'
 import FieldConfigPanel from '../designer/FieldConfigPanel.vue'
+import SubFieldDesigner from '../designer/SubFieldDesigner.vue'
 import PreviewModal from '../designer/PreviewModal.vue'
 import { saveDraftDefinition, publishDefinition as publishDef } from '../designer/draft-actions'
 import { applyFieldPatch, type FieldPatch } from '../designer/field-config'
@@ -53,6 +54,29 @@ const otherNames = computed(() =>
 function patchSelectedField(patch: FieldPatch) {
   const item = items.value.find((it) => it.id === selectedId.value)
   if (item) applyFieldPatch(item.field, patch)
+}
+
+/* ── 子表盖层编辑（独立状态，与主画布隔离） ── */
+const editingTableId = ref<string | null>(null)
+/** 正在盖层里编辑的子表字段（仅 TABLE 才有；非 TABLE / 未编辑为 null）。 */
+const editingTableField = computed(() => {
+  const item = items.value.find((it) => it.id === editingTableId.value)
+  return item && item.field.type === 'TABLE' ? item.field : null
+})
+
+/** 点主画布子表占位的「编辑」入口 → 打开盖层（已发布则拒绝进入，不可改子字段）。 */
+function openTableEditor(id: string) {
+  if (isPublished.value) return
+  editingTableId.value = id
+}
+
+/** 盖层返回 → 把子字段写回该子表字段的 subFields，关盖层。 */
+function closeTableEditor(subFields: TableSubField[]) {
+  const item = items.value.find((it) => it.id === editingTableId.value)
+  if (item && item.field.type === 'TABLE') {
+    item.field.subFields = subFields
+  }
+  editingTableId.value = null
 }
 
 /** 从画布导出表单定义（纯数据，无 UI id）。 */
@@ -231,6 +255,7 @@ function preValidateBeforePublish(list: DesignerItem[]): string | null {
         v-model:items="items"
         v-model:selected-id="selectedId"
         :readonly="isPublished"
+        @edit-table="openTableEditor"
       />
       <FieldConfigPanel
         :field="selectedItem"
@@ -244,6 +269,15 @@ function preValidateBeforePublish(list: DesignerItem[]): string | null {
     <div v-if="isPublished" class="designer__published-bar">
       此表单已发布，表名和字段已冻结，不可编辑。
     </div>
+
+    <!-- 子表盖层子画布：盖在主画布之上，独立状态编辑该子表的内部字段 -->
+    <SubFieldDesigner
+      v-if="editingTableField"
+      :table-label="editingTableField.label || editingTableField.name"
+      :sub-fields="editingTableField.subFields"
+      :readonly="isPublished"
+      @close="closeTableEditor"
+    />
 
     <PreviewModal v-model:visible="previewVisible" :schema="previewSchema" />
   </div>

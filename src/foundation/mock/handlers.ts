@@ -326,6 +326,65 @@ export const mockRegistrations: MockRegistration[] = [
     },
   },
 
+  // ── 表单数据：查详情（编辑回显） ────────────────────────────
+  // GET /api/form/data/{formKey}/{recordId}
+  // 返: R<Map> 含 id / version / 审计列 / 业务字段 / 子表行（每行带 id）
+  {
+    method: 'GET',
+    pattern: '/api/form/data/:formKey/:recordId',
+    handler: (params) => {
+      const { formKey, recordId } = params as Record<string, string>
+      const allRecords =
+        formKey === DEMO_FORM_KEY ? MOCK_FORM_DATA_RECORDS : MOCK_GENERIC_FORM_RECORDS
+      const record = allRecords.find((r) => String(r.id) === recordId)
+      if (!record) {
+        return { code: 1507, message: '记录不存在或已被删除', data: null }
+      }
+      // 返回副本，将 JSON 串子表字段解析为带行 id 的数组
+      const result: Record<string, unknown> = { ...record }
+      for (const [key, val] of Object.entries(result)) {
+        if (typeof val === 'string' && val.trim().startsWith('[')) {
+          try {
+            const arr = JSON.parse(val) as Record<string, unknown>[]
+            result[key] = arr.map((item, idx) => ({
+              id: `${recordId}_row_${idx + 1}`,
+              ...item,
+            }))
+          } catch {
+            /* 非 JSON 串则保留原值 */
+          }
+        }
+      }
+      return { code: 0, message: 'ok', data: result }
+    },
+  },
+
+  // ── 表单数据：更新记录 ─────────────────────────────────────
+  // PUT /api/form/data/{formKey}/{recordId}
+  // ← { data, version, subTableRows } → R<Void>
+  // 错误码: 1507 记录不存在 · 1508 版本冲突
+  {
+    method: 'PUT',
+    pattern: '/api/form/data/:formKey/:recordId',
+    handler: (params, _query, body) => {
+      const { formKey, recordId } = params as Record<string, string>
+      const { version: reqVersion } = (body as { version?: number }) ?? {}
+      const allRecords =
+        formKey === DEMO_FORM_KEY ? MOCK_FORM_DATA_RECORDS : MOCK_GENERIC_FORM_RECORDS
+      const record = allRecords.find((r) => String(r.id) === recordId)
+      if (!record) {
+        return { code: 1507, message: '记录不存在或已被删除', data: null }
+      }
+      const currentVersion = (record.version as number) ?? 1
+      if (reqVersion !== undefined && reqVersion !== currentVersion) {
+        return { code: 1508, message: '版本冲突，请刷新后重试', data: null }
+      }
+      // mock: 更新成功，版本号 +1
+      record.version = currentVersion + 1
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
   // ── 表单定义：新建草稿 ───────────────────────────────────
   // POST /api/form/def
   // 入参: { formKey, name }  返: FormDefDTO{ id, formKey, status }
@@ -468,6 +527,54 @@ export const mockRegistrations: MockRegistration[] = [
           name: existing.name,
           status: 'PUBLISHED',
         },
+      }
+    },
+  },
+
+  // ── 表单定义分页列表 ──────────────────────────────────────
+  // GET /api/form/def/page?pageNum=&pageSize=&keyword=
+  // 返 BackendPageResult<FormDefListItem>（records/total/pageNum/pageSize）
+  // 排序 update_time DESC（mock 按种子定义顺序模拟）
+  // 临时数据，上线后由后端真实数据替换。
+  {
+    method: 'GET',
+    pattern: '/api/form/def/page',
+    handler: (_params, query) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+      const keyword = String(query.keyword ?? '').trim()
+
+      // 从共享 store 读取所有条目，填充列表额外字段
+      const now = '2026-06-30 10:00:00'
+      let all = Array.from(MOCK_FORM_DEF_STORE.values()).map((item) => ({
+        id: item.id,
+        formKey: item.formKey,
+        name: item.name,
+        logicalTableName: '',
+        status: item.status,
+        physicalTableName: '',
+        formVersion: 1,
+        description: '',
+        createTime: now,
+        updateTime: now,
+      }))
+
+      // keyword 过滤
+      if (keyword) {
+        all = all.filter((i) => i.name.includes(keyword) || i.formKey.includes(keyword))
+      }
+
+      // 按 updateTime DESC（mock 按 name 逆序模拟）
+      all.sort((a, b) => b.name.localeCompare(a.name))
+
+      const total = all.length
+      const start = (pageNum - 1) * pageSize
+      const records = all.slice(start, start + pageSize)
+
+      return {
+        code: 0,
+        message: 'ok',
+        data: { records, total, pageNum, pageSize },
       }
     },
   },

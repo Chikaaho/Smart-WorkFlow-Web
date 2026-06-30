@@ -218,9 +218,9 @@ function mapFieldToCreateRule(field: FormSchemaField): Record<string, unknown> |
     }
 
     case 'REFERENCE': {
-      // TODO(reference-picker): 接入关联选择器，当前降级为文本输入占位
+      // 统一按钮占位：禁用态输入框，视觉上与普通 TEXT 区分。不查目标数据、不发请求。
       rule.type = 'input'
-      rule.props = { placeholder: '引用类型（填入目标 recordId）' }
+      rule.props = { disabled: true, placeholder: '引用字段选择器' }
       break
     }
 

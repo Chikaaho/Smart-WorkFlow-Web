@@ -28,17 +28,22 @@ describe('FIELD_TYPE_REGISTRY', () => {
     }
   })
 
-  // 第二刀：6 类简单字段填入配置面板；REFERENCE/TABLE 仍留空（后续刀）。
-  it('the 6 simple types carry a config component; REFERENCE/TABLE stay null', () => {
-    const SIMPLE_TYPES: FieldType[] = ['TEXT', 'RICH_TEXT', 'NUMBER', 'DATE', 'BOOL', 'DICT']
-    const STILL_EMPTY: FieldType[] = ['REFERENCE', 'TABLE']
+  // 7 类字段已填入配置面板（含本刀接入的 REFERENCE）；TABLE 仍留空（后续刀）。
+  it('the 7 filled types carry a config component; TABLE stays null', () => {
+    const FILLED_TYPES: FieldType[] = [
+      'TEXT',
+      'RICH_TEXT',
+      'NUMBER',
+      'DATE',
+      'BOOL',
+      'DICT',
+      'REFERENCE',
+    ]
 
-    for (const t of SIMPLE_TYPES) {
+    for (const t of FILLED_TYPES) {
       expect(getFieldTypeDescriptor(t)!.configComponent).toBeTruthy()
     }
-    for (const t of STILL_EMPTY) {
-      expect(getFieldTypeDescriptor(t)!.configComponent).toBeNull()
-    }
+    expect(getFieldTypeDescriptor('TABLE')!.configComponent).toBeNull()
   })
 
   it('createDefault produces contract-shaped fields keyed by the real schema keys', () => {

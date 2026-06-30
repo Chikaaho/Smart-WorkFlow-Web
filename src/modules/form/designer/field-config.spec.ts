@@ -38,9 +38,40 @@ describe('field-config', () => {
       length: 1,
       dictType: 'z',
       renderAs: 'select',
+      targetFormId: 'my-form-key',
     }
     expect(Object.keys(patch).sort()).toEqual(
-      ['dictType', 'label', 'length', 'name', 'renderAs', 'required'].sort(),
+      ['dictType', 'label', 'length', 'name', 'renderAs', 'required', 'targetFormId'].sort(),
     )
+  })
+
+  it('targetFormId stores formKey not id (red line: selecting form fills formKey, never UUID)', () => {
+    // 红线：选择器选中一行后，回填进 targetFormId 的必须是 formKey，绝不能存成 id。
+    // 这个测试钉死该行为——把 id 当 targetFormId 塞入就会在对照 formKey 断言时失败。
+    const field: import('@/contracts/form-schema').ReferenceField = {
+      name: 'ref1',
+      type: 'REFERENCE',
+      label: '关联',
+      required: false,
+    }
+    // 模拟选择器回填：选中行的 formKey = 'leave-request'
+    applyFieldPatch(field, { targetFormId: 'leave-request' })
+    expect(field.targetFormId).toBe('leave-request')
+    // 红线断言：targetFormId 必须是 formKey 样子（短横线 slug），不是 UUID
+    expect(field.targetFormId).not.toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
+  })
+
+  it('applyFieldPatch writes targetFormId to REFERENCE field', () => {
+    const field: import('@/contracts/form-schema').ReferenceField = {
+      name: 'ref1',
+      type: 'REFERENCE',
+      label: '关联',
+      required: false,
+    }
+    applyFieldPatch(field, { targetFormId: 'purchase-order', label: '采购关联' })
+    expect(field.targetFormId).toBe('purchase-order')
+    expect(field.label).toBe('采购关联')
   })
 })

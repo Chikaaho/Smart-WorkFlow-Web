@@ -9,7 +9,7 @@
  * 与画布共享 SortableJS group 'designer-fields'，pull:'clone' + put:false + sort:false：
  * 控件库本身永不被改动，只作为克隆来源。
  */
-import type { Component } from 'vue'
+import { computed, type Component } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import {
   EditPen,
@@ -24,6 +24,7 @@ import {
 import { FIELD_TYPE_REGISTRY, type FieldTypeDescriptor } from './field-types'
 import { generateColumnName } from './column-name'
 import { nextDesignerItemId, type DesignerItem } from './types'
+import type { FieldType } from '@/contracts/form-schema'
 
 const props = withDefaults(
   defineProps<{
@@ -31,8 +32,25 @@ const props = withDefaults(
     existingNames: string[]
     /** 已发布表单：禁止从控件库拖入新字段。 */
     disabled?: boolean
+    /**
+     * 允许的字段类型白名单；只露其中的控件。缺省=全注册表（主画布八类）。
+     * 盖层子画布传六种通用字段，硬挡 REFERENCE/TABLE 进子表。
+     */
+    allowedTypes?: readonly FieldType[]
+    /**
+     * SortableJS group 名。缺省 'designer-fields'（主画布上下文）。
+     * 盖层子画布传独立 group（如 'designer-subfields'），与主画布拖放严格隔离、互不串。
+     */
+    group?: string
   }>(),
-  { disabled: false },
+  { disabled: false, allowedTypes: undefined, group: 'designer-fields' },
+)
+
+/** 按 allowedTypes 过滤后的控件列表（缺省=全量）。model-value 与 v-for 同源，保证克隆按序对齐。 */
+const palette = computed<readonly FieldTypeDescriptor[]>(() =>
+  props.allowedTypes
+    ? FIELD_TYPE_REGISTRY.filter((d) => props.allowedTypes!.includes(d.type))
+    : FIELD_TYPE_REGISTRY,
 )
 
 /** 图标白名单（本地解析，注册表只存字符串键，不直引图标组件）。 */
@@ -65,8 +83,8 @@ function cloneToItem(descriptor: FieldTypeDescriptor): DesignerItem {
   <aside class="palette" :class="{ 'palette--disabled': disabled }">
     <h2 class="palette__title">控件库</h2>
     <VueDraggable
-      :model-value="[...FIELD_TYPE_REGISTRY]"
-      :group="{ name: 'designer-fields', pull: 'clone', put: false }"
+      :model-value="[...palette]"
+      :group="{ name: group, pull: 'clone', put: false }"
       :sort="false"
       :clone="cloneToItem"
       :animation="150"
@@ -74,7 +92,7 @@ function cloneToItem(descriptor: FieldTypeDescriptor): DesignerItem {
       class="palette__list"
       :disabled="disabled"
     >
-      <div v-for="d in FIELD_TYPE_REGISTRY" :key="d.type" class="palette__item">
+      <div v-for="d in palette" :key="d.type" class="palette__item">
         <el-icon v-if="ICON_MAP[d.icon]" class="palette__icon">
           <component :is="ICON_MAP[d.icon]" />
         </el-icon>

@@ -233,7 +233,7 @@ describe('adapters/form-designer/toFormCreateRule', () => {
     expect((r as Record<string, unknown>).__dictType__).toBe('sys_user_gender')
   })
 
-  it('maps REFERENCE to input with placeholder (not a picker)', () => {
+  it('maps REFERENCE to disabled input as unified button placeholder', () => {
     const schema = {
       title: 'F',
       fields: [{ name: 'refId', type: 'REFERENCE' as const }],
@@ -243,7 +243,9 @@ describe('adapters/form-designer/toFormCreateRule', () => {
 
     const r = rules[0] as Record<string, unknown>
     expect(r.type).toBe('input')
-    expect((r.props as Record<string, unknown>).placeholder).toContain('引用')
+    const props = r.props as Record<string, unknown>
+    expect(props.disabled).toBe(true)
+    expect(props.placeholder).toContain('引用字段')
   })
 
   it('maps TABLE to group with children matching subFields count', () => {

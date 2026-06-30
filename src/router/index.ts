@@ -47,6 +47,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/form/views/FormData.vue'),
         meta: { title: '表单数据' },
       },
+      {
+        path: 'form/form-def-list',
+        name: 'form-def-list',
+        component: () => import('@/modules/form/views/FormDefList.vue'),
+        meta: { title: '表单管理' },
+      },
     ],
   },
   {

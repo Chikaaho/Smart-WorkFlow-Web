@@ -50,7 +50,10 @@ const numVal = computed(() => Number(props.modelValue ?? 0))
 const boolVal = computed(() => Boolean(props.modelValue))
 
 /* ── TABLE 行操作 ── */
-type Row = Record<string, unknown>
+type Row = Record<string, unknown> & {
+  _rowAction?: 'ADD' | 'UPDATE' | 'DELETE' | 'UNCHANGED'
+  _rowId?: string
+}
 const tableRows = computed<Row[]>(() => {
   const v = props.modelValue
   return Array.isArray(v) ? (v as Row[]) : []
@@ -58,21 +61,32 @@ const tableRows = computed<Row[]>(() => {
 
 function addRow() {
   if (props.field.type !== 'TABLE') return
-  const row: Row = {}
+  const row: Row = { _rowAction: 'ADD' }
   for (const sf of props.field.subFields) row[sf.name] = ''
   emit('update:modelValue', [...tableRows.value, row])
 }
 
 function removeRow(idx: number) {
   const rows = [...tableRows.value]
-  rows.splice(idx, 1)
+  const row = rows[idx] as Row
+  if (row._rowAction === 'ADD') {
+    rows.splice(idx, 1)
+  } else {
+    rows[idx] = { ...row, _rowAction: 'DELETE' as const }
+  }
   emit('update:modelValue', rows)
 }
 
 function updateCell(rowIdx: number, subName: string, value: unknown) {
   emit(
     'update:modelValue',
-    tableRows.value.map((r, i) => (i === rowIdx ? { ...r, [subName]: value } : r)),
+    tableRows.value.map((r, i) => {
+      if (i !== rowIdx) return r
+      const row = r as Row
+      const nextAction: Row['_rowAction'] =
+        row._rowAction === 'UNCHANGED' ? 'UPDATE' : (row._rowAction ?? 'ADD')
+      return { ...row, [subName]: value, _rowAction: nextAction }
+    }),
   )
 }
 
@@ -183,75 +197,77 @@ function onReferenceSelect(payload: IdValueProperty) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(_, rowIdx) in tableRows" :key="rowIdx">
-            <td v-for="sf in field.subFields" :key="sf.name">
-              <!-- TEXT -->
-              <el-input
-                v-if="sf.type === 'TEXT'"
-                size="small"
-                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                :readonly="readonly"
-                @update:model-value="updateCell(rowIdx, sf.name, $event)"
-              />
-              <!-- RICH_TEXT（降级 textarea） -->
-              <el-input
-                v-else-if="sf.type === 'RICH_TEXT'"
-                size="small"
-                type="textarea"
-                :rows="3"
-                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                :readonly="readonly"
-                @update:model-value="updateCell(rowIdx, sf.name, $event)"
-              />
-              <!-- NUMBER -->
-              <el-input-number
-                v-else-if="sf.type === 'NUMBER'"
-                size="small"
-                :model-value="Number(tableRows[rowIdx]?.[sf.name] ?? 0)"
-                :disabled="readonly"
-                @update:model-value="updateCell(rowIdx, sf.name, $event)"
-              />
-              <!-- DATE -->
-              <el-date-picker
-                v-else-if="sf.type === 'DATE'"
-                size="small"
-                value-format="YYYY-MM-DD"
-                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                :disabled="readonly"
-                @update:model-value="updateCell(rowIdx, sf.name, $event)"
-              />
-              <!-- BOOL -->
-              <el-switch
-                v-else-if="sf.type === 'BOOL'"
-                size="small"
-                :model-value="Boolean(tableRows[rowIdx]?.[sf.name])"
-                :disabled="readonly"
-                @update:model-value="updateCell(rowIdx, sf.name, $event)"
-              />
-              <!-- DICT（透传子字段 dictType + renderAs） -->
-              <DictSelect
-                v-else-if="sf.type === 'DICT'"
-                size="small"
-                :type="sf.dictType ?? ''"
-                :render-as="sf.renderAs"
-                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                :disabled="readonly"
-                @update:model-value="updateCell(rowIdx, sf.name, $event)"
-              />
-              <!-- REFERENCE（降级 input 占位）/ TABLE（不递归）/ fallback -->
-              <el-input
-                v-else
-                size="small"
-                :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                placeholder="引用类型（文本占位）"
-                :readonly="readonly"
-                @update:model-value="updateCell(rowIdx, sf.name, $event)"
-              />
-            </td>
-            <td v-if="!readonly">
-              <el-button size="small" type="danger" @click="removeRow(rowIdx)">删除</el-button>
-            </td>
-          </tr>
+          <template v-for="(row, rowIdx) in tableRows" :key="rowIdx">
+            <tr v-if="(row as Row)._rowAction !== 'DELETE'">
+              <td v-for="sf in field.subFields" :key="sf.name">
+                <!-- TEXT -->
+                <el-input
+                  v-if="sf.type === 'TEXT'"
+                  size="small"
+                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                  :readonly="readonly"
+                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
+                />
+                <!-- RICH_TEXT（降级 textarea） -->
+                <el-input
+                  v-else-if="sf.type === 'RICH_TEXT'"
+                  size="small"
+                  type="textarea"
+                  :rows="3"
+                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                  :readonly="readonly"
+                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
+                />
+                <!-- NUMBER -->
+                <el-input-number
+                  v-else-if="sf.type === 'NUMBER'"
+                  size="small"
+                  :model-value="Number(tableRows[rowIdx]?.[sf.name] ?? 0)"
+                  :disabled="readonly"
+                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
+                />
+                <!-- DATE -->
+                <el-date-picker
+                  v-else-if="sf.type === 'DATE'"
+                  size="small"
+                  value-format="YYYY-MM-DD"
+                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                  :disabled="readonly"
+                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
+                />
+                <!-- BOOL -->
+                <el-switch
+                  v-else-if="sf.type === 'BOOL'"
+                  size="small"
+                  :model-value="Boolean(tableRows[rowIdx]?.[sf.name])"
+                  :disabled="readonly"
+                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
+                />
+                <!-- DICT（透传子字段 dictType + renderAs） -->
+                <DictSelect
+                  v-else-if="sf.type === 'DICT'"
+                  size="small"
+                  :type="sf.dictType ?? ''"
+                  :render-as="sf.renderAs"
+                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                  :disabled="readonly"
+                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
+                />
+                <!-- REFERENCE（降级 input 占位）/ TABLE（不递归）/ fallback -->
+                <el-input
+                  v-else
+                  size="small"
+                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
+                  placeholder="引用类型（文本占位）"
+                  :readonly="readonly"
+                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
+                />
+              </td>
+              <td v-if="!readonly">
+                <el-button size="small" type="danger" @click="removeRow(rowIdx)">删除</el-button>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
       <el-button v-if="!readonly" size="small" @click="addRow">+ 添加行</el-button>

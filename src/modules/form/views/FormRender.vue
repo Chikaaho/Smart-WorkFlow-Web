@@ -17,8 +17,15 @@
  *   显示名单独注入 DynamicField 的 referenceLabel prop，不污染 v-model
  */
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { getFormDefinition, submitForm, queryFormData } from '@/modules/form/api/form'
+import { useRoute, useRouter } from 'vue-router'
+import type { SubTableRowAction, SubTableRowActionType } from '@/modules/form/api/form'
+import {
+  getFormDefinition,
+  submitForm,
+  getFormData,
+  updateFormData,
+  normalizeSubmitData,
+} from '@/modules/form/api/form'
 import { ApiError } from '@/foundation/request'
 import DynamicField from '@/components/DynamicField.vue'
 import { resolveReferenceDisplay } from '@/modules/form/utils/resolve-reference-display'
@@ -27,6 +34,7 @@ import type { FormSchema, FormSchemaField } from '@/contracts/form-schema'
 /* ── 路由参数 ── */
 
 const route = useRoute()
+const router = useRouter()
 const formKey = String(route.params.formKey)
 const recordId = route.query.recordId ? String(route.query.recordId) : ''
 const mode = route.query.mode === 'edit' ? 'edit' : 'view'
@@ -41,6 +49,8 @@ const successMsg = ref('')
 const formData = reactive<Record<string, unknown>>({})
 /** REFERENCE 字段显示名映射：{ fieldName: displayName } */
 const referenceLabels = reactive<Record<string, string>>({})
+/** 乐观锁版本号（编辑回显时从 GET 详情获取，保存时 PUT 回传） */
+const version = ref<number>(0)
 
 // 查看只读模式：有 recordId 且 mode=view；无 recordId 时永远是新建（可编辑）
 const isViewMode = computed(() => !!recordId && mode === 'view')
@@ -99,22 +109,18 @@ async function loadSchema() {
 
 /**
  * 按 recordId 加载已有记录并回填 formData。
- * - TABLE 字段: JSON 串 → 数组
+ * - 调 GET /api/form/data/{formKey}/{recordId} 取单记录
+ * - 提取 version 用于乐观锁
+ * - TABLE 字段: JSON 串 → 数组，每行打 _rowAction: 'UNCHANGED' + _rowId
  * - REFERENCE 字段: 物理列 ref_{name}_id → formData.{name}
  * - REFERENCE 显示名: 并发解析后写入 referenceLabels
  */
 async function loadRecord(schema: FormSchema) {
   try {
-    const result = await queryFormData(formKey, {
-      pageNum: 1,
-      pageSize: 1,
-      filters: [{ field: 'id', op: 'EQ', value: recordId }],
-    })
-    const record = result.list?.[0]
-    if (!record) {
-      errorMsg.value = '记录不存在或已被删除'
-      return
-    }
+    const record = await getFormData(formKey, recordId)
+
+    // 存储乐观锁版本号
+    version.value = (record.version as number) ?? 0
 
     const refPromises: Promise<void>[] = []
 
@@ -122,7 +128,17 @@ async function loadRecord(schema: FormSchema) {
       switch (field.type) {
         case 'TABLE': {
           const raw = record[field.name]
-          formData[field.name] = typeof raw === 'string' ? tryParseJSON(raw, []) : (raw ?? [])
+          const arr: unknown = typeof raw === 'string' ? tryParseJSON(raw, []) : (raw ?? [])
+          formData[field.name] = Array.isArray(arr)
+            ? arr.map((row: unknown) => {
+                const r = row as Record<string, unknown>
+                return {
+                  ...r,
+                  _rowAction: 'UNCHANGED' as const,
+                  _rowId: String(r.id ?? ''),
+                }
+              })
+            : []
           break
         }
         case 'REFERENCE': {
@@ -151,8 +167,16 @@ async function loadRecord(schema: FormSchema) {
     if (refPromises.length > 0) {
       await Promise.all(refPromises)
     }
-  } catch {
-    errorMsg.value = '记录加载失败'
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (err.code === 1507) {
+        errorMsg.value = '记录已被删除'
+        return
+      }
+      errorMsg.value = `记录加载失败：${err.msg}`
+    } else {
+      errorMsg.value = '记录加载失败'
+    }
   }
 }
 
@@ -162,8 +186,61 @@ function businessError(code: number, fallback: string): string {
   const MAP: Record<number, string> = {
     1401: '必填字段缺失，请检查所有必填项',
     1403: '字段值超出字典允许范围，请重新选择',
+    1507: '记录已被删除',
+    1508: '记录已被他人修改，请刷新后重试',
   }
   return MAP[code] ?? fallback
+}
+
+/**
+ * 组装编辑保存的 PUT 请求体。
+ * - data: 主表非 TABLE 字段（经 normalizeSubmitData 归一）
+ * - version: 从 GET 详情获取的乐观锁版本号
+ * - subTableRows: TABLE 字段的行变动动作列表（从 _rowAction / _rowId 提取）
+ */
+function buildUpdatePayload(): {
+  data: Record<string, unknown>
+  version: number
+  subTableRows: Record<string, SubTableRowAction[]>
+} {
+  const data: Record<string, unknown> = {}
+  const subTableRows: Record<string, SubTableRowAction[]> = {}
+
+  if (!schema.value) return { data, version: version.value, subTableRows }
+
+  const nonTableFields: FormSchemaField[] = []
+
+  for (const field of schema.value.fields) {
+    if (field.type === 'TABLE') {
+      const rows = (Array.isArray(formData[field.name]) ? formData[field.name] : []) as Record<
+        string,
+        unknown
+      >[]
+      subTableRows[field.name] = rows.map((row) => {
+        const { _rowAction, _rowId, ...businessData } = row as Record<string, unknown> & {
+          _rowAction?: string
+          _rowId?: string
+        }
+        const action: SubTableRowActionType =
+          (_rowAction as SubTableRowActionType | undefined) ?? 'UNCHANGED'
+        const entry: SubTableRowAction = { action }
+        if (_rowId) entry.id = String(_rowId)
+        if (action !== 'DELETE') {
+          entry.data = businessData as Record<string, unknown>
+        }
+        return entry
+      })
+    } else {
+      nonTableFields.push(field)
+      data[field.name] = formData[field.name]
+    }
+  }
+
+  return {
+    data: normalizeSubmitData(data, nonTableFields),
+    version: version.value,
+    subTableRows,
+  }
 }
 
 /* ── 提交 / 保存 ── */
@@ -173,14 +250,44 @@ async function handleSubmit() {
   errorMsg.value = ''
   successMsg.value = ''
 
-  // 编辑保存 seam（更新端点待上线）
+  // 编辑保存：走 PUT 更新端点
   if (recordId) {
-    errorMsg.value = '编辑保存：更新端点待上线'
-    submitting.value = false
+    try {
+      const payload = buildUpdatePayload()
+      await updateFormData(formKey, recordId, payload)
+      successMsg.value = '保存成功'
+      // 保存成功后重新加载记录（版本号已变，拉取最新数据）
+      if (schema.value) await loadRecord(schema.value)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 1507) {
+          errorMsg.value = '记录已被删除'
+          // 回列表
+          // eslint-disable-next-line no-undef
+          window.setTimeout(() => {
+            router.push({ name: 'form-data', params: { formKey } })
+          }, 1500)
+          submitting.value = false
+          return
+        }
+        if (err.code === 1508) {
+          errorMsg.value = '记录已被他人修改，请刷新后重试'
+          // 刷新数据
+          if (schema.value) await loadRecord(schema.value)
+          submitting.value = false
+          return
+        }
+        errorMsg.value = businessError(err.code, err.msg)
+      } else {
+        errorMsg.value = '保存失败，请稍后重试'
+      }
+    } finally {
+      submitting.value = false
+    }
     return
   }
 
-  // 新建提交
+  // 新建提交：走 POST 创建端点
   try {
     const id = await submitForm(formKey, { ...formData }, schema.value?.fields)
     successMsg.value = `提交成功，记录 ID：${id}`

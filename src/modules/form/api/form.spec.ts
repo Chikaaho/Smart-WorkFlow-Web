@@ -12,6 +12,8 @@ import {
   getFormDefinition,
   submitForm,
   listSubmissions,
+  getFormData,
+  updateFormData,
   normalizeSubmitData,
 } from './form'
 
@@ -99,6 +101,46 @@ describe('modules/form/api/form', () => {
     expect(result.list).toEqual([{ id: '1', val: 'a' }])
     expect(result.total).toBe(1)
   })
+
+  it('getFormData calls GET /form/data/{formKey}/{recordId}', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ id: 'rec1', version: 1, name: 'test' })
+    const record = await getFormData('my-form', 'rec1')
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'GET', url: '/form/data/my-form/rec1' }),
+    )
+    expect(record).toEqual({ id: 'rec1', version: 1, name: 'test' })
+  })
+
+  it('getFormData propagates ApiError (e.g. 1507 record not found)', async () => {
+    const apiErr = new Error('记录不存在或已被删除')
+    vi.mocked(request).mockRejectedValueOnce(apiErr)
+    await expect(getFormData('k', 'bad-id')).rejects.toThrow('记录不存在或已被删除')
+  })
+
+  it('updateFormData calls PUT /form/data/{formKey}/{recordId} with payload', async () => {
+    vi.mocked(request).mockResolvedValueOnce(null)
+    const payload = {
+      data: { name: 'Alice' },
+      version: 2,
+      subTableRows: { items: [{ action: 'UNCHANGED' as const, id: 'row1', data: { col: 'v' } }] },
+    }
+    await updateFormData('my-form', 'rec1', payload)
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'PUT',
+        url: '/form/data/my-form/rec1',
+        data: payload,
+      }),
+    )
+  })
+
+  it('updateFormData propagates ApiError (e.g. 1508 version conflict)', async () => {
+    const apiErr = new Error('版本冲突')
+    vi.mocked(request).mockRejectedValueOnce(apiErr)
+    await expect(
+      updateFormData('k', 'r1', { data: {}, version: 1, subTableRows: {} }),
+    ).rejects.toThrow('版本冲突')
+  })
 })
 
 /* ── normalizeSubmitData ──────────────────────────────────── */
@@ -152,12 +194,44 @@ describe('normalizeSubmitData', () => {
     expect(normalizeSubmitData({ x: undefined }, fields)).toEqual({ x: '' })
   })
 
-  it('handles RICH_TEXT and TABLE fields unchanged', () => {
+  it('handles RICH_TEXT unchanged', () => {
+    const fields = [{ name: 'rich', type: 'RICH_TEXT' as const }]
+    expect(normalizeSubmitData({ rich: 'some html' }, fields)).toEqual({ rich: 'some html' })
+  })
+
+  it('strips _rowAction and _rowId from TABLE rows', () => {
     const fields = [
-      { name: 'rich', type: 'RICH_TEXT' as const },
-      { name: 'tbl', type: 'TABLE' as const, subFields: [{ name: 'c', type: 'TEXT' as const }] },
+      {
+        name: 'items',
+        type: 'TABLE' as const,
+        subFields: [{ name: 'col', type: 'TEXT' as const }],
+      },
     ]
-    const data = { rich: 'some html', tbl: [{ c: 'val' }] }
-    expect(normalizeSubmitData(data, fields)).toEqual(data)
+    const data = {
+      items: [
+        { col: 'a', _rowAction: 'ADD' },
+        { col: 'b', _rowAction: 'UPDATE', _rowId: 'r2' },
+        { col: 'c', _rowAction: 'UNCHANGED', _rowId: 'r3' },
+        { col: 'd', _rowAction: 'DELETE', _rowId: 'r4' },
+      ],
+    }
+    expect(normalizeSubmitData(data, fields)).toEqual({
+      items: [{ col: 'a' }, { col: 'b' }, { col: 'c' }, { col: 'd' }],
+    })
+  })
+
+  it('returns empty array for null/undefined TABLE value', () => {
+    const fields = [
+      { name: 'items', type: 'TABLE' as const, subFields: [{ name: 'c', type: 'TEXT' as const }] },
+    ]
+    expect(normalizeSubmitData({ items: null }, fields)).toEqual({ items: [] })
+    expect(normalizeSubmitData({ items: undefined }, fields)).toEqual({ items: [] })
+  })
+
+  it('handles TABLE with empty array', () => {
+    const fields = [
+      { name: 'items', type: 'TABLE' as const, subFields: [{ name: 'c', type: 'TEXT' as const }] },
+    ]
+    expect(normalizeSubmitData({ items: [] }, fields)).toEqual({ items: [] })
   })
 })

@@ -1,11 +1,12 @@
 import { request } from '@/foundation/request'
 import { parseDefinition } from '@/adapters/form-designer'
 import type { FormSchema } from '@/contracts/form-schema'
+import type { PageQuery, PageResult } from '@/contracts/common'
 
 /**
- * 表单定义 API 模块（设计器草稿保存 / 发布接线）。
+ * 表单定义 API 模块（设计器草稿保存 / 发布接线 / 列表查询）。
  *
- * 四个端点，全部走 foundation/request，禁直引 axios。
+ * 全部走 foundation/request，禁直引 axios。
  */
 
 /** 后端 sw_form_def 记录状态。 */
@@ -23,6 +24,42 @@ export interface FormDefDTO {
   formKey: string
   name?: string
   status: FormDefStatus
+}
+
+/**
+ * 表单定义列表项 DTO（比 FormDefDTO 多字段，来自分页端点）。
+ * GET /api/form/def/page 返回的行数据。
+ */
+export interface FormDefListItem {
+  id: string
+  formKey: string
+  name: string
+  logicalTableName: string
+  status: FormDefStatus
+  physicalTableName: string
+  formVersion: number
+  description: string
+  createTime: string
+  updateTime: string
+}
+
+/**
+ * 后端分页原始形状（records 字段，与前端的 list 不同）。
+ */
+interface BackendPageResult<T> {
+  records: T[]
+  total: number
+  pageNum: number
+  pageSize: number
+}
+
+function adaptPage<T>(raw: BackendPageResult<T>): PageResult<T> {
+  return {
+    list: raw.records,
+    total: raw.total,
+    pageNum: raw.pageNum,
+    pageSize: raw.pageSize,
+  }
 }
 
 /** 存 definition 请求体。 */
@@ -82,4 +119,24 @@ export async function publishFormDef(id: string): Promise<FormDefDTO> {
     method: 'POST',
     url: `/form/def/${id}/publish`,
   })
+}
+
+/**
+ * 分页查询表单定义列表。
+ * GET /api/form/def/page?pageNum=&pageSize=&keyword=
+ * 返 PageResult<FormDefListItem>，排序 update_time DESC。
+ * keyword 为可选模糊搜索词（匹配 name / formKey）。
+ */
+export async function pageFormDefs(
+  page: PageQuery,
+  keyword?: string,
+): Promise<PageResult<FormDefListItem>> {
+  const params: Record<string, unknown> = { ...page }
+  if (keyword) params.keyword = keyword
+  const raw = await request<BackendPageResult<FormDefListItem>>({
+    method: 'GET',
+    url: '/form/def/page',
+    params,
+  })
+  return adaptPage(raw)
 }

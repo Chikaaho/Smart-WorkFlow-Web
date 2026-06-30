@@ -246,7 +246,7 @@ describe('DynamicField — 8 类字段渲染', () => {
     expect(rows[0].c1).toBe('')
   })
 
-  it('TABLE removeRow emits updated rows', async () => {
+  it('TABLE removeRow marks non-ADD row as DELETE instead of splicing', async () => {
     const wrapper = mountField(
       { name: 't1', type: 'TABLE', subFields: [{ name: 'c1', type: 'TEXT' }] },
       [{ c1: 'a' }, { c1: 'b' }],
@@ -256,7 +256,9 @@ describe('DynamicField — 8 类字段渲染', () => {
     const emitted = wrapper.emitted('update:modelValue')
     expect(emitted).toBeTruthy()
     const rows = emitted![0][0] as Record<string, unknown>[]
-    expect(rows.length).toBe(1)
+    // 非 ADD 行不 splice，而是标记 _rowAction: 'DELETE'
+    expect(rows.length).toBe(2)
+    expect((rows[0] as { _rowAction?: string })._rowAction).toBe('DELETE')
   })
 
   /* ── TABLE 子字段按 type 分发 ── */

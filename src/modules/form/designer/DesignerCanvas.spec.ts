@@ -10,8 +10,9 @@ import type { FormSchemaField } from '@/contracts/form-schema'
  *  ② 每个 FormPreview 收到「单字段」schema 且 mode='design'
  *  ③ 点壳 = 选中（update:selectedId）
  *  ④ 删除 = 移除该字段（update:items）+ 清选中
- *  ⑤ REFERENCE/TABLE 照传 FormPreview（降级由 adapter 负责），不崩
- *  ⑥ 无字段时出空态提示
+ *  ⑤ REFERENCE 照传 FormPreview（降级由 adapter 负责）；TABLE 渲成占位块 + 「编辑子表」入口
+ *  ⑥ 点 TABLE 编辑入口 emit editTable（已发布只读时不 emit）
+ *  ⑦ 无字段时出空态提示
  *
  * FormPreview / VueDraggable 均 stub —— 画布只验壳层逻辑，不拉起 form-create 子 app / SortableJS。
  */
@@ -89,17 +90,49 @@ describe('DesignerCanvas (WYSIWYG)', () => {
     expect(wrapper.emitted('update:selectedId')?.at(-1)).toEqual([null])
   })
 
-  it('passes REFERENCE and TABLE through to FormPreview (downgrade in adapter)', () => {
+  it('passes REFERENCE through to FormPreview but renders TABLE as a placeholder block', () => {
     const wrapper = mountCanvas([
       item('di_1', 'ref', { type: 'REFERENCE', targetFormId: 'form_x' }),
-      item('di_2', 'tbl', { type: 'TABLE', subFields: [] }),
+      item('di_2', 'tbl', {
+        type: 'TABLE',
+        label: '明细',
+        subFields: [
+          { name: 'c1', type: 'TEXT' },
+          { name: 'c2', type: 'NUMBER' },
+        ],
+      }),
     ])
+    // REFERENCE 仍走 FormPreview（降级由 adapter 负责）；TABLE 不再走 FormPreview。
     const previews = wrapper.findAll('[data-testid="fc"]')
-    expect(previews).toHaveLength(2)
-    const f0 = JSON.parse(previews[0].attributes('data-fields')!) as FormSchemaField[]
-    const f1 = JSON.parse(previews[1].attributes('data-fields')!) as FormSchemaField[]
-    expect(f0[0].type).toBe('REFERENCE')
-    expect(f1[0].type).toBe('TABLE')
+    expect(previews).toHaveLength(1)
+    expect((JSON.parse(previews[0].attributes('data-fields')!) as FormSchemaField[])[0].type).toBe(
+      'REFERENCE',
+    )
+    // TABLE 渲染成占位块：显示标签 + 「N 个子字段」 + 编辑入口。
+    const table = wrapper.find('.field-shell__table')
+    expect(table.exists()).toBe(true)
+    expect(table.find('.field-shell__table-label').text()).toBe('明细')
+    expect(table.find('.field-shell__table-count').text()).toBe('2 个子字段')
+    expect(table.find('.field-shell__table-edit').exists()).toBe(true)
+  })
+
+  it('emits editTable with the field id when the TABLE edit entry is clicked', async () => {
+    const wrapper = mountCanvas([item('di_9', 'tbl', { type: 'TABLE', subFields: [] })])
+    await wrapper.find('.field-shell__table-edit').trigger('click')
+    expect(wrapper.emitted('editTable')?.at(-1)).toEqual(['di_9'])
+  })
+
+  it('does not emit editTable when readonly (published form)', async () => {
+    const wrapper = mount(DesignerCanvas, {
+      props: {
+        items: [item('di_9', 'tbl', { type: 'TABLE', subFields: [] })],
+        selectedId: null,
+        readonly: true,
+      },
+      global: { stubs },
+    })
+    await wrapper.find('.field-shell__table-edit').trigger('click')
+    expect(wrapper.emitted('editTable')).toBeUndefined()
   })
 
   it('shows empty hint when no items', () => {
