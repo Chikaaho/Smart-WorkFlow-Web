@@ -34,6 +34,7 @@ import {
   MOCK_DEMO_SUBMISSIONS,
   MOCK_FORM_DATA_RECORDS,
   MOCK_GENERIC_FORM_RECORDS,
+  MOCK_FORM_DEF_STORE,
 } from './seeds'
 
 // ─── 注册条目类型 ────────────────────────────────────────
@@ -320,6 +321,152 @@ export const mockRegistrations: MockRegistration[] = [
           total: filtered.length,
           pageNum,
           pageSize,
+        },
+      }
+    },
+  },
+
+  // ── 表单定义：新建草稿 ───────────────────────────────────
+  // POST /api/form/def
+  // 入参: { formKey, name }  返: FormDefDTO{ id, formKey, status }
+  {
+    method: 'POST',
+    pattern: '/api/form/def',
+    handler: (_params, _query, body) => {
+      const req = body as { formKey?: string; name?: string }
+      const id = 'mock-def-' + Date.now()
+      const formKey = req.formKey ?? 'form_' + Date.now()
+      const name = req.name ?? '未命名表单'
+
+      MOCK_FORM_DEF_STORE.set(id, {
+        id,
+        formKey,
+        name,
+        status: 'DRAFT',
+        definition: JSON.stringify({ title: name, fields: [] }),
+      })
+
+      return {
+        code: 0,
+        message: 'ok',
+        data: { id, formKey, name, status: 'DRAFT' },
+      }
+    },
+  },
+
+  // ── 表单定义：保存 config ─────────────────────────────────
+  // POST /api/form/def/:id/config
+  // 入参: { definition: string }  返: void
+  {
+    method: 'POST',
+    pattern: '/api/form/def/:id/config',
+    handler: (params, _query, body) => {
+      const id = (params as Record<string, string>).id
+      const req = body as { definition?: string }
+      const existing = MOCK_FORM_DEF_STORE.get(id)
+
+      if (!existing) {
+        return { code: 1500, message: '表单不存在', data: null }
+      }
+
+      existing.definition = req.definition ?? existing.definition
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 表单定义：取 definition ────────────────────────────────
+  // GET /api/form/def/:id/definition
+  // 返: R<String>（definition JSON 字符串）
+  {
+    method: 'GET',
+    pattern: '/api/form/def/:id/definition',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const existing = MOCK_FORM_DEF_STORE.get(id)
+
+      if (!existing) {
+        return {
+          code: 0,
+          message: 'ok',
+          data: JSON.stringify({ title: '未命名表单', fields: [] }),
+        }
+      }
+
+      return { code: 0, message: 'ok', data: existing.definition }
+    },
+  },
+
+  // ── 表单定义：发布 ────────────────────────────────────────
+  // POST /api/form/def/:id/publish
+  // 返: FormDefDTO（status=PUBLISHED）
+  // 模拟校验：非法列名（以数字开头）→ 1204
+  {
+    method: 'POST',
+    pattern: '/api/form/def/:id/publish',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const existing = MOCK_FORM_DEF_STORE.get(id)
+
+      if (!existing) {
+        return { code: 1500, message: '表单不存在', data: null }
+      }
+
+      // 简易 mock 校验：检查 definition 中是否有以数字开头的字段名
+      try {
+        const def = JSON.parse(existing.definition) as {
+          title: string
+          fields: Array<{ name: string; type: string }>
+        }
+        for (const field of def.fields) {
+          if (/^\d/.test(field.name)) {
+            return {
+              code: 1204,
+              message: `字段名 "${field.name}" 不合法（仅允许字母/数字/下划线，且不能以数字开头）`,
+              data: null,
+            }
+          }
+          // DICT 未绑定 dictType
+          if (field.type === 'DICT' && !(field as { dictType?: string }).dictType) {
+            return {
+              code: 1206,
+              message: `字典字段 "${field.name}" 未绑定字典类型`,
+              data: null,
+            }
+          }
+          // REFERENCE 未指定 targetFormId
+          if (field.type === 'REFERENCE' && !(field as { targetFormId?: string }).targetFormId) {
+            return {
+              code: 1207,
+              message: `引用字段 "${field.name}" 未指定目标表单`,
+              data: null,
+            }
+          }
+          // TABLE 无子列
+          if (
+            field.type === 'TABLE' &&
+            (!(field as { subFields?: unknown[] }).subFields ||
+              (field as { subFields?: unknown[] }).subFields!.length === 0)
+          ) {
+            return {
+              code: 1208,
+              message: `子表格字段 "${field.name}" 未定义子列`,
+              data: null,
+            }
+          }
+        }
+      } catch {
+        // JSON 非法时也返回校验失败
+      }
+
+      existing.status = 'PUBLISHED'
+      return {
+        code: 0,
+        message: 'ok',
+        data: {
+          id: existing.id,
+          formKey: existing.formKey,
+          name: existing.name,
+          status: 'PUBLISHED',
         },
       }
     },

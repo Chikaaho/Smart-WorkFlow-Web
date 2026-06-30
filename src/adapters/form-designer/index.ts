@@ -173,8 +173,8 @@ function mapFieldToCreateRule(field: FormSchemaField): Record<string, unknown> |
   }
 
   if (field.required) {
-    // required → form-create 内置必填校验（前端 UX 即时提示不作拦死提交）
-    rule.required = true
+    // required → validate 数组（form-create/Element Plus 必填校验直通通道）
+    rule.validate = [{ required: true, message: '必填', trigger: 'blur' }]
   }
 
   switch (field.type) {

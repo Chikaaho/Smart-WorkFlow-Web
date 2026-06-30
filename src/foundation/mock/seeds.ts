@@ -379,3 +379,21 @@ export const MOCK_GENERIC_FORM_RECORDS: Record<string, unknown>[] = [
     create_time: '2026-06-22 10:00:00',
   },
 ]
+
+/**
+ * Mock 表单定义草稿存储（内存，供 form-def mock handlers 读写）。
+ *
+ * 新建草稿 → createFormDef 在此插入一条；存 definition → saveFormConfig 在此更新；
+ * 取 definition → getFormDefinitionById 在此读取；发布 → publishFormDef 在此更新状态。
+ * 临时数据，后端真实端点就绪后下线。
+ */
+export const MOCK_FORM_DEF_STORE: Map<
+  string,
+  {
+    id: string
+    formKey: string
+    name: string
+    status: 'DRAFT' | 'PUBLISHED'
+    definition: string
+  }
+> = new Map()

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/foundation/request', () => ({ request: vi.fn() }))
 
 import { request } from '@/foundation/request'
-import { useDict } from './index'
+import { useDict, listDictTypes } from './index'
 
 describe('foundation/dict', () => {
   beforeEach(() => {
@@ -28,5 +28,23 @@ describe('foundation/dict', () => {
     vi.mocked(request).mockResolvedValueOnce([{ code: 'B', label: 'Beta' }])
     const second = useDict('test_type_b')
     await vi.waitFor(() => expect(second.items.value).toEqual([{ label: 'Beta', value: 'B' }]))
+  })
+
+  it('listDictTypes maps backend paged records to {code,name} (designer DICT 绑定)', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      records: [
+        { code: 'dept', name: '部门', extra: 'ignored' },
+        { code: 'leave_type', name: '请假类型' },
+      ],
+    })
+    const types = await listDictTypes()
+    expect(types).toEqual([
+      { code: 'dept', name: '部门' },
+      { code: 'leave_type', name: '请假类型' },
+    ])
+    // 走单一请求层，POST 分页端点，不直引 axios。
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST', url: '/system/dict/type/page' }),
+    )
   })
 })

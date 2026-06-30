@@ -277,24 +277,26 @@ describe('adapters/form-designer/toFormCreateRule', () => {
 
   /* ---- required 映射 ---- */
 
-  it('adds required: true on rule when field is required', () => {
+  it('adds validate[{ required }] on rule when field is required', () => {
     const schema = {
       title: 'F',
       fields: [{ name: 'req', type: 'TEXT' as const, required: true }],
     }
     const rules = toFormCreateRule(schema)
     const r = rules[0] as Record<string, unknown>
-    expect(r.required).toBe(true)
+    const validate = r.validate as Array<Record<string, unknown>>
+    expect(validate).toBeDefined()
+    expect(validate.some((v) => v.required === true)).toBe(true)
   })
 
-  it('omits required flag when field is not required', () => {
+  it('omits validate array when field is not required', () => {
     const schema = {
       title: 'F',
       fields: [{ name: 'opt', type: 'TEXT' as const, required: false }],
     }
     const rules = toFormCreateRule(schema)
     const r = rules[0] as Record<string, unknown>
-    expect(r.required).toBeUndefined()
+    expect(r.validate).toBeUndefined()
   })
 
   /* ---- label 回退 ---- */

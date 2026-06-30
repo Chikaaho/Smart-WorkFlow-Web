@@ -30,6 +30,12 @@ const routes: RouteRecordRaw[] = [
     // 直达 URL 可进,受 authGuard 保护,无需纳入后端菜单树。
     children: [
       {
+        path: 'form/form-designer/:id?',
+        name: 'form-designer',
+        component: () => import('@/modules/form/views/FormDesigner.vue'),
+        meta: { title: '表单设计器' },
+      },
+      {
         path: 'form/form-render/:formKey',
         name: 'form-render',
         component: () => import('@/modules/form/views/FormRender.vue'),

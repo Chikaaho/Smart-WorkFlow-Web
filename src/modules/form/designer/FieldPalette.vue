@@ -25,10 +25,15 @@ import { FIELD_TYPE_REGISTRY, type FieldTypeDescriptor } from './field-types'
 import { generateColumnName } from './column-name'
 import { nextDesignerItemId, type DesignerItem } from './types'
 
-const props = defineProps<{
-  /** 画布现有列名，用于克隆时生成唯一列名建议（前端 UX 提示，真校验在后端发布）。 */
-  existingNames: string[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** 画布现有列名，用于克隆时生成唯一列名建议（前端 UX 提示，真校验在后端发布）。 */
+    existingNames: string[]
+    /** 已发布表单：禁止从控件库拖入新字段。 */
+    disabled?: boolean
+  }>(),
+  { disabled: false },
+)
 
 /** 图标白名单（本地解析，注册表只存字符串键，不直引图标组件）。 */
 const ICON_MAP: Record<string, Component> = {
@@ -57,7 +62,7 @@ function cloneToItem(descriptor: FieldTypeDescriptor): DesignerItem {
 </script>
 
 <template>
-  <aside class="palette">
+  <aside class="palette" :class="{ 'palette--disabled': disabled }">
     <h2 class="palette__title">控件库</h2>
     <VueDraggable
       :model-value="[...FIELD_TYPE_REGISTRY]"
@@ -67,6 +72,7 @@ function cloneToItem(descriptor: FieldTypeDescriptor): DesignerItem {
       :animation="150"
       item-key="type"
       class="palette__list"
+      :disabled="disabled"
     >
       <div v-for="d in FIELD_TYPE_REGISTRY" :key="d.type" class="palette__item">
         <el-icon v-if="ICON_MAP[d.icon]" class="palette__icon">
@@ -126,5 +132,19 @@ function cloneToItem(descriptor: FieldTypeDescriptor): DesignerItem {
 
 .palette__item:hover .palette__icon {
   color: var(--sw-color-primary);
+}
+
+.palette--disabled .palette__item {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.palette--disabled .palette__item:hover {
+  border-color: var(--sw-border-base);
+  color: var(--sw-text-regular);
+}
+
+.palette--disabled .palette__item:hover .palette__icon {
+  color: var(--sw-text-secondary);
 }
 </style>

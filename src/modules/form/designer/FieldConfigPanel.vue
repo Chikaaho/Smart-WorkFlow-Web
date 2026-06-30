@@ -13,11 +13,16 @@ import { getFieldTypeDescriptor } from './field-types'
 import type { DesignerItem } from './types'
 import type { FieldPatch } from './field-config'
 
-const props = defineProps<{
-  field: DesignerItem | null
-  /** 同表单内**其它**字段的列名（不含选中字段），透传给配置面板做重名校验。 */
-  otherNames: string[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    field: DesignerItem | null
+    /** 同表单内**其它**字段的列名（不含选中字段），透传给配置面板做重名校验。 */
+    otherNames: string[]
+    /** 已发布表单：禁止编辑配置。 */
+    readonly?: boolean
+  }>(),
+  { readonly: false },
+)
 
 const emit = defineEmits<{ update: [patch: FieldPatch] }>()
 
@@ -38,17 +43,22 @@ const descriptor = computed(() =>
         <span class="config__name">{{ field.field.name }}</span>
       </div>
 
+      <!-- 已发布：只读，不渲染可编辑配置面板 -->
+      <p v-if="readonly" class="config__readonly-hint">已发布表单，配置只读</p>
+
       <!-- 配置内容挂载位：6 类简单字段已填入面板；REF/TABLE 仍为 null → 占位。 -->
-      <component
-        :is="descriptor.configComponent"
-        v-if="descriptor?.configComponent"
-        :field="field.field"
-        :other-names="otherNames"
-        @update="(p: FieldPatch) => emit('update', p)"
-      />
-      <p v-else class="config__placeholder">
-        「{{ descriptor?.label ?? '该字段' }}」配置项待接入（后续刀）
-      </p>
+      <template v-else>
+        <component
+          :is="descriptor.configComponent"
+          v-if="descriptor?.configComponent"
+          :field="field.field"
+          :other-names="otherNames"
+          @update="(p: FieldPatch) => emit('update', p)"
+        />
+        <p v-else class="config__placeholder">
+          「{{ descriptor?.label ?? '该字段' }}」配置项待接入（后续刀）
+        </p>
+      </template>
     </template>
   </aside>
 </template>
@@ -95,6 +105,15 @@ const descriptor = computed(() =>
   font-size: var(--sw-font-caption);
   color: var(--sw-text-secondary);
   font-family: var(--el-font-family-mono, monospace);
+}
+
+.config__readonly-hint {
+  padding: var(--sw-space-16);
+  border: 1px dashed var(--sw-border-light);
+  border-radius: var(--sw-radius-base);
+  color: var(--sw-text-secondary);
+  font-size: var(--sw-font-secondary);
+  text-align: center;
 }
 
 .config__placeholder {

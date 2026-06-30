@@ -21,11 +21,23 @@ describe('FIELD_TYPE_REGISTRY', () => {
     expect(new Set(types)).toEqual(new Set(ENABLED_TYPES))
   })
 
-  it('every descriptor carries label + icon + null config slot (filled in 第二刀)', () => {
+  it('every descriptor carries label + icon', () => {
     for (const d of FIELD_TYPE_REGISTRY) {
       expect(d.label).toBeTruthy()
       expect(d.icon).toBeTruthy()
-      expect(d.configComponent).toBeNull()
+    }
+  })
+
+  // 第二刀：6 类简单字段填入配置面板；REFERENCE/TABLE 仍留空（后续刀）。
+  it('the 6 simple types carry a config component; REFERENCE/TABLE stay null', () => {
+    const SIMPLE_TYPES: FieldType[] = ['TEXT', 'RICH_TEXT', 'NUMBER', 'DATE', 'BOOL', 'DICT']
+    const STILL_EMPTY: FieldType[] = ['REFERENCE', 'TABLE']
+
+    for (const t of SIMPLE_TYPES) {
+      expect(getFieldTypeDescriptor(t)!.configComponent).toBeTruthy()
+    }
+    for (const t of STILL_EMPTY) {
+      expect(getFieldTypeDescriptor(t)!.configComponent).toBeNull()
     }
   })
 

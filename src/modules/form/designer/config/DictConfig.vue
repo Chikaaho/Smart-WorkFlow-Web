@@ -61,7 +61,7 @@ onMounted(async () => {
       <el-radio-group
         :model-value="props.field.renderAs ?? 'select'"
         @update:model-value="
-          (v: string | number | boolean) =>
+          (v: string | number | boolean | undefined) =>
             emit('update', { renderAs: v === 'radio' ? 'radio' : 'select' })
         "
       >
