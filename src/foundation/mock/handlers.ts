@@ -35,6 +35,8 @@ import {
   MOCK_FORM_DATA_RECORDS,
   MOCK_GENERIC_FORM_RECORDS,
   MOCK_FORM_DEF_STORE,
+  MOCK_TODO_TASKS,
+  MOCK_PROCESS_DEFS,
 } from './seeds'
 
 // ─── 注册条目类型 ────────────────────────────────────────
@@ -571,6 +573,50 @@ export const mockRegistrations: MockRegistration[] = [
       const start = (pageNum - 1) * pageSize
       const records = all.slice(start, start + pageSize)
 
+      return {
+        code: 0,
+        message: 'ok',
+        data: { records, total, pageNum, pageSize },
+      }
+    },
+  },
+
+  // ── 待办任务：当前用户待办列表 ──────────────────────────
+  {
+    method: 'GET',
+    pattern: '/api/workflow/tasks/todo',
+    handler: () => ({
+      code: 0,
+      message: 'ok',
+      data: MOCK_TODO_TASKS,
+    }),
+  },
+
+  // ── 待办任务：完成审批（从 mock 列表中移除对应 task） ────
+  {
+    method: 'POST',
+    pattern: '/api/workflow/tasks/:taskId/complete',
+    handler: (params) => {
+      const { taskId } = params as Record<string, string>
+      const idx = MOCK_TODO_TASKS.findIndex((t) => t.taskId === taskId)
+      if (idx === -1) {
+        return { code: 404, message: '任务不存在', data: null }
+      }
+      MOCK_TODO_TASKS.splice(idx, 1)
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 流程定义：分页列表 ─────────────────────────────────
+  {
+    method: 'GET',
+    pattern: '/api/workflow/defs',
+    handler: (_params, query) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+      const total = MOCK_PROCESS_DEFS.length
+      const start = (pageNum - 1) * pageSize
+      const records = MOCK_PROCESS_DEFS.slice(start, start + pageSize)
       return {
         code: 0,
         message: 'ok',

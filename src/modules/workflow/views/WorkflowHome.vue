@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import BlankPage from '@/components/BlankPage.vue'
+// 目录重定向到第一个子页 /workflow/todo；本组件仅作 fallback。
 </script>
-
 <template>
-  <BlankPage />
+  <div />
 </template>
