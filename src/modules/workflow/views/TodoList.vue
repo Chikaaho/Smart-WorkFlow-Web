@@ -55,20 +55,23 @@ function approveRow(r: unknown) {
 }
 
 async function handleApprove(row: TodoTask) {
-  // 防重复点击
+  // 防重复点击：在显示确认框前锁定，阻止快速点击创建多个对话框
   if (approvingId.value) return
+  approvingId.value = row.taskId
 
+  let confirmed = false
   try {
     await ElMessageBox.confirm('确认审批通过此任务？', '审批确认', {
       confirmButtonText: '通过',
       cancelButtonText: '取消',
       type: 'info',
     })
+    confirmed = true
   } catch {
     return // 用户取消
+  } finally {
+    if (!confirmed) approvingId.value = null
   }
-
-  approvingId.value = row.taskId
   try {
     await completeTask(row.taskId)
     ElMessage.success('审批通过')

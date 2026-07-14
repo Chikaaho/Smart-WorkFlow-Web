@@ -10,8 +10,14 @@ import { CSP_POLICY } from './src/security/csp.ts'
 // 业务页无需手写 `import { ElXxx } from 'element-plus'`——天然绕开 modules 直引三方库的边界限制。
 // 生成的 dts（src/types/auto-imports.d.ts / components.d.ts）为产物，已纳入 eslint/prettier 忽略。
 const elementPlusAutoImport = (): PluginOption[] => [
-  AutoImport({ resolvers: [ElementPlusResolver()], dts: 'src/types/auto-imports.d.ts' }),
-  Components({ resolvers: [ElementPlusResolver()], dts: 'src/types/components.d.ts' }),
+  AutoImport({
+    resolvers: [ElementPlusResolver({ importStyle: 'css' })],
+    dts: 'src/types/auto-imports.d.ts',
+  }),
+  Components({
+    resolvers: [ElementPlusResolver({ importStyle: 'css' })],
+    dts: 'src/types/components.d.ts',
+  }),
 ]
 
 function cspMetaPlugin(): Plugin {

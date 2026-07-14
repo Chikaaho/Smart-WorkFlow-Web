@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
-// 品牌色单源主题，须在 Element Plus 组件样式之后参与级联（main 顶部导入即可覆盖默认 token）。
+// Element Plus 全量 CSS，确保 API 调用组件（ElMessageBox、ElMessage、ElNotification 等）样式可用。
+import 'element-plus/dist/index.css'
+// 品牌色单源主题，覆盖 Element Plus 默认 token，须在 Element Plus 样式之后导入。
 import './styles/tokens.css'
 
 import App from './App.vue'
