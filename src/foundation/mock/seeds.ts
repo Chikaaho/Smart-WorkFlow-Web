@@ -21,7 +21,7 @@ export const MOCK_SESSION_DATA = {
     tenantId: '1',
     avatar: null,
   },
-  permissions: ['system:view', 'form:view', 'form:form:view', 'workflow:view'],
+  permissions: ['system:view', 'form:view', 'form:form:view', 'workflow:view', 'notify:view'],
   roles: ['admin'],
   superAdmin: true,
 }
@@ -610,5 +610,134 @@ export const MOCK_PROCESS_DEFS: Array<{
     status: 'PUBLISHED',
     createTime: '2026-07-09 13:45:00',
     updateTime: '2026-07-11 15:30:00',
+  },
+]
+
+// ─── 通知消息 Mock 种子 ──────────────────────────────
+export const MOCK_NOTIFY_MESSAGES: Array<{
+  id: number
+  recipientId: number
+  title: string
+  content: string
+  bizType: 'WF_TODO' | 'WF_APPROVED'
+  bizId: string | null
+  read: boolean
+  createTime: string
+  createBy: number | null
+  updateTime: string
+  updateBy: number | null
+  tenantId: number
+}> = [
+  {
+    id: 1,
+    recipientId: 1,
+    title: '新待办任务：请假申请审批',
+    content: '张三提交了请假申请，等待您审批。请假日期：2026-07-10，共2天。',
+    bizType: 'WF_TODO',
+    bizId: 'mock-task-001',
+    read: false,
+    createTime: '2026-07-15T09:00:00',
+    createBy: null,
+    updateTime: '2026-07-15T09:00:00',
+    updateBy: null,
+    tenantId: 1,
+  },
+  {
+    id: 2,
+    recipientId: 1,
+    title: '审批结果：采购订单已通过',
+    content: '您提交的采购订单已通过审批，请查看详情。',
+    bizType: 'WF_APPROVED',
+    bizId: 'mock-task-002',
+    read: false,
+    createTime: '2026-07-14T16:30:00',
+    createBy: null,
+    updateTime: '2026-07-14T16:30:00',
+    updateBy: null,
+    tenantId: 1,
+  },
+  {
+    id: 3,
+    recipientId: 1,
+    title: '新待办任务：合同审批流程',
+    content: '李四提交了合同审批申请，请尽快处理。合同编号：CT-2026-0712。',
+    bizType: 'WF_TODO',
+    bizId: 'mock-task-003',
+    read: false,
+    createTime: '2026-07-14T10:15:00',
+    createBy: null,
+    updateTime: '2026-07-14T10:15:00',
+    updateBy: null,
+    tenantId: 1,
+  },
+  {
+    id: 4,
+    recipientId: 1,
+    title: '会议通知：项目复盘会',
+    content: '项目复盘会定于7月16日14:00在3楼会议室召开，请准时参加。',
+    bizType: 'WF_TODO',
+    bizId: null,
+    read: true,
+    createTime: '2026-07-13T08:00:00',
+    createBy: null,
+    updateTime: '2026-07-13T08:00:00',
+    updateBy: null,
+    tenantId: 1,
+  },
+  {
+    id: 5,
+    recipientId: 1,
+    title: '审批结果：费用报销已驳回',
+    content: '您提交的费用报销单因缺少发票附件被驳回，请补充后重新提交。',
+    bizType: 'WF_APPROVED',
+    bizId: 'mock-task-004',
+    read: true,
+    createTime: '2026-07-12T15:45:00',
+    createBy: null,
+    updateTime: '2026-07-12T15:45:00',
+    updateBy: null,
+    tenantId: 1,
+  },
+  {
+    id: 6,
+    recipientId: 1,
+    title: '新待办任务：差旅报销审批',
+    content: '王五提交了差旅报销申请，金额3,200元，请审批。',
+    bizType: 'WF_TODO',
+    bizId: 'mock-task-005',
+    read: true,
+    createTime: '2026-07-11T11:20:00',
+    createBy: null,
+    updateTime: '2026-07-11T11:20:00',
+    updateBy: null,
+    tenantId: 1,
+  },
+  {
+    id: 7,
+    recipientId: 1,
+    title: '系统通知：密码即将过期',
+    content: '您的登录密码将于7天后过期，请及时修改密码以保障账户安全。',
+    bizType: 'WF_TODO',
+    bizId: null,
+    read: false,
+    createTime: '2026-07-10T09:00:00',
+    createBy: null,
+    updateTime: '2026-07-10T09:00:00',
+    updateBy: null,
+    tenantId: 1,
+  },
+  {
+    id: 8,
+    recipientId: 1,
+    title: '审批结果：请假申请已通过',
+    content: '您提交的请假申请（2026-07-10）已通过审批，请合理安排工作。',
+    bizType: 'WF_APPROVED',
+    bizId: 'fd_001',
+    read: true,
+    createTime: '2026-07-10T08:30:00',
+    createBy: null,
+    updateTime: '2026-07-10T08:30:00',
+    updateBy: null,
+    tenantId: 1,
   },
 ]

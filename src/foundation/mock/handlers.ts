@@ -37,6 +37,7 @@ import {
   MOCK_FORM_DEF_STORE,
   MOCK_TODO_TASKS,
   MOCK_PROCESS_DEFS,
+  MOCK_NOTIFY_MESSAGES,
 } from './seeds'
 
 // ─── 注册条目类型 ────────────────────────────────────────
@@ -622,6 +623,32 @@ export const mockRegistrations: MockRegistration[] = [
         message: 'ok',
         data: { records, total, pageNum, pageSize },
       }
+    },
+  },
+
+  // ── 通知消息：当前用户通知列表 ──────────────────────────
+  {
+    method: 'GET',
+    pattern: '/api/notify/messages',
+    handler: () => ({
+      code: 0,
+      message: 'ok',
+      data: MOCK_NOTIFY_MESSAGES,
+    }),
+  },
+
+  // ── 通知消息：标记已读 ──────────────────────────────────
+  {
+    method: 'POST',
+    pattern: '/api/notify/messages/:id/read',
+    handler: (params) => {
+      const msg = MOCK_NOTIFY_MESSAGES.find(
+        (m) => m.id === Number((params as Record<string, string>).id),
+      )
+      if (msg) {
+        msg.read = true
+      }
+      return { code: 0, message: 'ok', data: null }
     },
   },
 ]
