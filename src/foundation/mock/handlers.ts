@@ -38,6 +38,10 @@ import {
   MOCK_TODO_TASKS,
   MOCK_PROCESS_DEFS,
   MOCK_NOTIFY_MESSAGES,
+  MOCK_USERS_LIST,
+  MOCK_ROLES_LIST,
+  MOCK_DEPTS_LIST,
+  MOCK_POSTS_LIST,
 } from './seeds'
 
 // ─── 注册条目类型 ────────────────────────────────────────
@@ -648,6 +652,334 @@ export const mockRegistrations: MockRegistration[] = [
       if (msg) {
         msg.read = true
       }
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 用户管理 CRUD ──────────────────────────────────────────
+  {
+    method: 'POST',
+    pattern: '/api/system/user/page',
+    handler: (_params, query, body) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+      let list = [...MOCK_USERS_LIST]
+      if (body && typeof body === 'object') {
+        const f = body as Record<string, unknown>
+        if (f.username) list = list.filter((u) => u.username.includes(String(f.username)))
+        if (f.status !== undefined && f.status !== null && f.status !== '')
+          list = list.filter((u) => u.status === Number(f.status))
+      }
+      const total = list.length
+      const start = (pageNum - 1) * pageSize
+      const records = list.slice(start, start + pageSize)
+      return { code: 0, message: 'ok', data: { records, total, pageNum, pageSize } }
+    },
+  },
+  {
+    method: 'GET',
+    pattern: '/api/system/user/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const user = MOCK_USERS_LIST.find((u) => u.id === id)
+      if (!user) return { code: 404, message: '用户不存在', data: null }
+      return { code: 0, message: 'ok', data: { ...user } }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: '/api/system/user',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const id = String(Date.now())
+      const newUser = {
+        id,
+        username: String(data.username ?? ''),
+        realName: String(data.realName ?? ''),
+        email: String(data.email ?? ''),
+        phone: String(data.phone ?? ''),
+        sex: Number(data.sex ?? 0),
+        status: Number(data.status ?? 1),
+        deptId: String(data.deptId ?? ''),
+        isAdmin: false,
+        avatar: null,
+        createTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      MOCK_USERS_LIST.push(newUser as (typeof MOCK_USERS_LIST)[number])
+      return { code: 0, message: 'ok', data: id }
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/system/user',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const idx = MOCK_USERS_LIST.findIndex((u) => u.id === String(data.id))
+      if (idx === -1) return { code: 404, message: '用户不存在', data: null }
+      const existing = MOCK_USERS_LIST[idx]
+      MOCK_USERS_LIST[idx] = {
+        ...existing,
+        username: String(data.username ?? existing.username),
+        realName: String(data.realName ?? existing.realName),
+        email: String(data.email ?? existing.email),
+        phone: String(data.phone ?? existing.phone),
+        sex: data.sex !== undefined ? Number(data.sex) : existing.sex,
+        status: data.status !== undefined ? Number(data.status) : existing.status,
+        deptId: data.deptId !== undefined ? String(data.deptId) : existing.deptId,
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/system/user/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const idx = MOCK_USERS_LIST.findIndex((u) => u.id === id)
+      if (idx === -1) return { code: 0, message: 'ok', data: null }
+      MOCK_USERS_LIST.splice(idx, 1)
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 角色管理 CRUD ──────────────────────────────────────────
+  {
+    method: 'POST',
+    pattern: '/api/system/role/page',
+    handler: (_params, query, body) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+      let list = [...MOCK_ROLES_LIST]
+      if (body && typeof body === 'object') {
+        const f = body as Record<string, unknown>
+        if (f.name) list = list.filter((r) => r.name.includes(String(f.name)))
+        if (f.code) list = list.filter((r) => r.code.includes(String(f.code)))
+        if (f.status !== undefined && f.status !== null && f.status !== '')
+          list = list.filter((r) => r.status === Number(f.status))
+      }
+      const total = list.length
+      const start = (pageNum - 1) * pageSize
+      const records = list.slice(start, start + pageSize)
+      return { code: 0, message: 'ok', data: { records, total, pageNum, pageSize } }
+    },
+  },
+  {
+    method: 'GET',
+    pattern: '/api/system/role/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const role = MOCK_ROLES_LIST.find((r) => r.id === id)
+      if (!role) return { code: 404, message: '角色不存在', data: null }
+      return { code: 0, message: 'ok', data: { ...role } }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: '/api/system/role',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const id = String(Date.now())
+      const newRole = {
+        id,
+        name: String(data.name ?? ''),
+        code: String(data.code ?? ''),
+        sort: Number(data.sort ?? 0),
+        status: Number(data.status ?? 1),
+        dataScope: 1,
+        builtIn: false,
+        description: String(data.description ?? ''),
+        createTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      MOCK_ROLES_LIST.push(newRole as (typeof MOCK_ROLES_LIST)[number])
+      return { code: 0, message: 'ok', data: id }
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/system/role',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const idx = MOCK_ROLES_LIST.findIndex((r) => r.id === String(data.id))
+      if (idx === -1) return { code: 404, message: '角色不存在', data: null }
+      const existing = MOCK_ROLES_LIST[idx]
+      MOCK_ROLES_LIST[idx] = {
+        ...existing,
+        name: String(data.name ?? existing.name),
+        code: String(data.code ?? existing.code),
+        sort: data.sort !== undefined ? Number(data.sort) : existing.sort,
+        status: data.status !== undefined ? Number(data.status) : existing.status,
+        description:
+          data.description !== undefined ? String(data.description) : existing.description,
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/system/role/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const idx = MOCK_ROLES_LIST.findIndex((r) => r.id === id)
+      if (idx === -1) return { code: 0, message: 'ok', data: null }
+      MOCK_ROLES_LIST.splice(idx, 1)
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 部门管理 CRUD ──────────────────────────────────────────
+  {
+    method: 'GET',
+    pattern: '/api/system/dept/tree',
+    handler: () => {
+      return { code: 0, message: 'ok', data: [...MOCK_DEPTS_LIST] }
+    },
+  },
+  {
+    method: 'GET',
+    pattern: '/api/system/dept/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const dept = MOCK_DEPTS_LIST.find((d) => d.id === id)
+      if (!dept) return { code: 404, message: '部门不存在', data: null }
+      return { code: 0, message: 'ok', data: { ...dept } }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: '/api/system/dept',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const id = String(Date.now())
+      const newDept = {
+        id,
+        parentId: String(data.parentId ?? '0'),
+        name: String(data.name ?? ''),
+        code: String(data.code ?? ''),
+        sort: Number(data.sort ?? 0),
+        status: Number(data.status ?? 1),
+        createTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      MOCK_DEPTS_LIST.push(newDept as (typeof MOCK_DEPTS_LIST)[number])
+      return { code: 0, message: 'ok', data: id }
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/system/dept',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const idx = MOCK_DEPTS_LIST.findIndex((d) => d.id === String(data.id))
+      if (idx === -1) return { code: 404, message: '部门不存在', data: null }
+      const existing = MOCK_DEPTS_LIST[idx]
+      MOCK_DEPTS_LIST[idx] = {
+        ...existing,
+        parentId: data.parentId !== undefined ? String(data.parentId) : existing.parentId,
+        name: String(data.name ?? existing.name),
+        code: String(data.code ?? existing.code),
+        sort: data.sort !== undefined ? Number(data.sort) : existing.sort,
+        status: data.status !== undefined ? Number(data.status) : existing.status,
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/system/dept/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const idx = MOCK_DEPTS_LIST.findIndex((d) => d.id === id)
+      if (idx === -1) return { code: 0, message: 'ok', data: null }
+      MOCK_DEPTS_LIST.splice(idx, 1)
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 岗位管理 CRUD ──────────────────────────────────────────
+  {
+    method: 'POST',
+    pattern: '/api/system/post/page',
+    handler: (_params, query, body) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+      let list = [...MOCK_POSTS_LIST]
+      if (body && typeof body === 'object') {
+        const f = body as Record<string, unknown>
+        if (f.code) list = list.filter((p) => p.code.includes(String(f.code)))
+        if (f.name) list = list.filter((p) => p.name.includes(String(f.name)))
+        if (f.status !== undefined && f.status !== null && f.status !== '')
+          list = list.filter((p) => p.status === Number(f.status))
+      }
+      const total = list.length
+      const start = (pageNum - 1) * pageSize
+      const records = list.slice(start, start + pageSize)
+      return { code: 0, message: 'ok', data: { records, total, pageNum, pageSize } }
+    },
+  },
+  {
+    method: 'GET',
+    pattern: '/api/system/post/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const post = MOCK_POSTS_LIST.find((p) => p.id === id)
+      if (!post) return { code: 404, message: '岗位不存在', data: null }
+      return { code: 0, message: 'ok', data: { ...post } }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: '/api/system/post',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const id = String(Date.now())
+      const newPost = {
+        id,
+        code: String(data.code ?? ''),
+        name: String(data.name ?? ''),
+        sort: Number(data.sort ?? 0),
+        status: Number(data.status ?? 1),
+        description: String(data.description ?? ''),
+        createTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      MOCK_POSTS_LIST.push(newPost as (typeof MOCK_POSTS_LIST)[number])
+      return { code: 0, message: 'ok', data: id }
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/system/post',
+    handler: (_params, _query, body) => {
+      const data = body as Record<string, unknown>
+      const idx = MOCK_POSTS_LIST.findIndex((p) => p.id === String(data.id))
+      if (idx === -1) return { code: 404, message: '岗位不存在', data: null }
+      const existing = MOCK_POSTS_LIST[idx]
+      MOCK_POSTS_LIST[idx] = {
+        ...existing,
+        code: String(data.code ?? existing.code),
+        name: String(data.name ?? existing.name),
+        sort: data.sort !== undefined ? Number(data.sort) : existing.sort,
+        status: data.status !== undefined ? Number(data.status) : existing.status,
+        description:
+          data.description !== undefined ? String(data.description) : existing.description,
+        updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/system/post/:id',
+    handler: (params) => {
+      const id = (params as Record<string, string>).id
+      const idx = MOCK_POSTS_LIST.findIndex((p) => p.id === id)
+      if (idx === -1) return { code: 0, message: 'ok', data: null }
+      MOCK_POSTS_LIST.splice(idx, 1)
       return { code: 0, message: 'ok', data: null }
     },
   },
