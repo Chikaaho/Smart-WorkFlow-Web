@@ -53,6 +53,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/form/views/FormDefList.vue'),
         meta: { title: '表单管理' },
       },
+      {
+        path: 'workflow/task/:taskId',
+        name: 'TaskDetail',
+        component: () => import('@/modules/workflow/views/TaskDetail.vue'),
+        meta: { title: '任务详情' },
+      },
+      {
+        path: 'workflow/processed',
+        name: 'ProcessedList',
+        component: () => import('@/modules/workflow/views/ProcessedList.vue'),
+        meta: { title: '已办任务' },
+      },
     ],
   },
   {

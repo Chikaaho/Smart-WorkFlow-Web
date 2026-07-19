@@ -36,6 +36,7 @@ import {
   MOCK_GENERIC_FORM_RECORDS,
   MOCK_FORM_DEF_STORE,
   MOCK_TODO_TASKS,
+  MOCK_PROCESSED_TASKS,
   MOCK_PROCESS_DEFS,
   MOCK_NOTIFY_MESSAGES,
   MOCK_USERS_LIST,
@@ -586,18 +587,52 @@ export const mockRegistrations: MockRegistration[] = [
     },
   },
 
-  // ── 待办任务：当前用户待办列表 ──────────────────────────
+  // ── 待办任务：当前用户待办分页列表 ─────────────────────
   {
     method: 'GET',
     pattern: '/api/workflow/tasks/todo',
-    handler: () => ({
-      code: 0,
-      message: 'ok',
-      data: MOCK_TODO_TASKS,
-    }),
+    handler: (_params, query) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+      const total = MOCK_TODO_TASKS.length
+      const start = (pageNum - 1) * pageSize
+      const records = MOCK_TODO_TASKS.slice(start, start + pageSize)
+      return { code: 0, message: 'ok', data: { records, total, pageNum, pageSize } }
+    },
   },
 
-  // ── 待办任务：完成审批（从 mock 列表中移除对应 task） ────
+  // ── 待办任务：查询任务详情 ─────────────────────────────
+  {
+    method: 'GET',
+    pattern: '/api/workflow/tasks/:taskId',
+    handler: (params) => {
+      const { taskId } = params as Record<string, string>
+      const task = MOCK_TODO_TASKS.find((t) => t.taskId === taskId)
+      if (!task) {
+        return { code: 404, message: '任务不存在', data: null }
+      }
+      return {
+        code: 0,
+        message: 'ok',
+        data: {
+          taskId: task.taskId,
+          taskName: task.processName + '审批',
+          processInstanceId: task.processInstanceId,
+          processDefinitionKey: 'skeleton_approval',
+          processName: task.processName,
+          formKey: task.formKey,
+          businessKey: task.businessKey,
+          assignee: '2',
+          initiatorId: 1,
+          createTime: task.createTime,
+          processVariables: { formKey: task.formKey },
+          approvalHistory: [],
+        },
+      }
+    },
+  },
+
+  // ── 待办任务：完成审批 ─────────────────────────────────
   {
     method: 'POST',
     pattern: '/api/workflow/tasks/:taskId/complete',
@@ -609,6 +644,39 @@ export const mockRegistrations: MockRegistration[] = [
       }
       MOCK_TODO_TASKS.splice(idx, 1)
       return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 待办任务：驳回 ───────────────────────────────────
+  {
+    method: 'POST',
+    pattern: '/api/workflow/tasks/:taskId/reject',
+    handler: (params) => {
+      const { taskId } = params as Record<string, string>
+      const idx = MOCK_TODO_TASKS.findIndex((t) => t.taskId === taskId)
+      if (idx === -1) {
+        return { code: 404, message: '任务不存在', data: null }
+      }
+      MOCK_TODO_TASKS.splice(idx, 1)
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 已办任务：当前用户已办分页列表 ─────────────────────
+  {
+    method: 'GET',
+    pattern: '/api/workflow/tasks/processed',
+    handler: (_params, query) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+      const total = MOCK_PROCESSED_TASKS.length
+      const start = (pageNum - 1) * pageSize
+      const records = MOCK_PROCESSED_TASKS.slice(start, start + pageSize)
+      return {
+        code: 0,
+        message: 'ok',
+        data: { records, total, pageNum, pageSize },
+      }
     },
   },
 

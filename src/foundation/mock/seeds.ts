@@ -169,6 +169,19 @@ export const MOCK_MENU_TREE = [
         permission: 'workflow:view',
         hidden: false,
       },
+      {
+        id: '32',
+        parentId: '3',
+        name: 'processed-list',
+        title: '已办任务',
+        path: 'workflow/processed',
+        component: 'workflow/views/ProcessedList',
+        icon: 'Checked',
+        sort: 3,
+        menuType: 1,
+        permission: 'workflow:view',
+        hidden: false,
+      },
     ],
   },
   {
@@ -571,6 +584,7 @@ initFormDefStore()
 export const MOCK_TODO_TASKS: Array<{
   taskId: string
   processInstanceId: string
+  processName: string
   formKey: string
   businessKey: string
   createTime: string
@@ -578,6 +592,7 @@ export const MOCK_TODO_TASKS: Array<{
   {
     taskId: 'mock-task-001',
     processInstanceId: 'mock-proc-001',
+    processName: '请假审批流程',
     formKey: 'leave-request',
     businessKey: 'fd_001',
     createTime: '2026-07-10T09:15:00',
@@ -585,6 +600,7 @@ export const MOCK_TODO_TASKS: Array<{
   {
     taskId: 'mock-task-002',
     processInstanceId: 'mock-proc-002',
+    processName: '采购审批流程',
     formKey: 'purchase-order',
     businessKey: 'fd_003',
     createTime: '2026-07-11T14:30:00',
@@ -592,6 +608,7 @@ export const MOCK_TODO_TASKS: Array<{
   {
     taskId: 'mock-task-003',
     processInstanceId: 'mock-proc-003',
+    processName: '合同审批流程',
     formKey: 'contract-approval',
     businessKey: 'fd_005',
     createTime: '2026-07-12T10:00:00',
@@ -599,6 +616,7 @@ export const MOCK_TODO_TASKS: Array<{
   {
     taskId: 'mock-task-004',
     processInstanceId: 'mock-proc-004',
+    processName: '费用报销流程',
     formKey: 'expense-report',
     businessKey: 'gen_001',
     createTime: '2026-07-13T08:45:00',
@@ -606,6 +624,7 @@ export const MOCK_TODO_TASKS: Array<{
   {
     taskId: 'mock-task-005',
     processInstanceId: 'mock-proc-005',
+    processName: '请假审批流程',
     formKey: 'leave-request',
     businessKey: 'gen_002',
     createTime: '2026-07-14T11:20:00',
@@ -672,6 +691,49 @@ export const MOCK_PROCESS_DEFS: Array<{
     status: 'PUBLISHED',
     createTime: '2026-07-09 13:45:00',
     updateTime: '2026-07-11 15:30:00',
+  },
+]
+
+// ─── 已办任务 Mock 种子 ──────────────────────────────
+export const MOCK_PROCESSED_TASKS: Array<{
+  taskId: string
+  taskName: string
+  processInstanceId: string
+  processName: string | null
+  formKey: string
+  businessKey: string
+  createTime: string
+  endTime: string | null
+}> = [
+  {
+    taskId: 'processed-001',
+    taskName: '请假审批',
+    processInstanceId: 'proc-001',
+    processName: '请假审批流程',
+    formKey: 'leave-request',
+    businessKey: 'fd_010',
+    createTime: '2026-07-10T08:00:00',
+    endTime: '2026-07-10T15:30:00',
+  },
+  {
+    taskId: 'processed-002',
+    taskName: '报销审批',
+    processInstanceId: 'proc-002',
+    processName: '费用报销流程',
+    formKey: 'expense-report',
+    businessKey: 'fd_011',
+    createTime: '2026-07-12T09:00:00',
+    endTime: '2026-07-12T17:00:00',
+  },
+  {
+    taskId: 'processed-003',
+    taskName: '合同审批',
+    processInstanceId: 'proc-003',
+    processName: null,
+    formKey: 'contract-approval',
+    businessKey: 'fd_012',
+    createTime: '2026-07-14T10:00:00',
+    endTime: null,
   },
 ]
 

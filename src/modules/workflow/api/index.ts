@@ -1,6 +1,6 @@
 import { request } from '@/foundation/request'
 import type { PageQuery, PageResult } from '@/contracts/common'
-import type { TodoTask, ProcessDef } from '@/contracts/bpm'
+import type { TodoTask, TaskDetail, ProcessedTask, ProcessDef } from '@/contracts/bpm'
 
 // ─── 后端分页原始形状 ───
 interface BackendPageResult<T> {
@@ -23,11 +23,21 @@ function adaptPage<T>(raw: BackendPageResult<T>): PageResult<T> {
 // 待办任务
 // ═══════════════════════════════════════
 
-/** GET /workflow/tasks/todo → TodoTask[] */
-export async function queryTodoTasks(): Promise<TodoTask[]> {
-  return request<TodoTask[]>({
+/** GET /workflow/tasks/todo?pageNum=&pageSize= → PageResult<TodoTask> */
+export async function queryTodoTasks(page: PageQuery): Promise<PageResult<TodoTask>> {
+  const raw = await request<BackendPageResult<TodoTask>>({
     method: 'GET',
     url: '/workflow/tasks/todo',
+    params: page,
+  })
+  return adaptPage(raw)
+}
+
+/** GET /workflow/tasks/{taskId} → TaskDetail */
+export async function queryTaskDetail(taskId: string): Promise<TaskDetail> {
+  return request<TaskDetail>({
+    method: 'GET',
+    url: `/workflow/tasks/${taskId}`,
   })
 }
 
@@ -37,6 +47,28 @@ export async function completeTask(taskId: string): Promise<void> {
     method: 'POST',
     url: `/workflow/tasks/${taskId}/complete`,
   })
+}
+
+/** POST /workflow/tasks/{taskId}/reject → void */
+export async function rejectTask(taskId: string): Promise<void> {
+  return request<void>({
+    method: 'POST',
+    url: `/workflow/tasks/${taskId}/reject`,
+  })
+}
+
+// ═══════════════════════════════════════
+// 已办任务
+// ═══════════════════════════════════════
+
+/** GET /workflow/tasks/processed?pageNum=&pageSize= → PageResult<ProcessedTask> */
+export async function queryProcessedTasks(page: PageQuery): Promise<PageResult<ProcessedTask>> {
+  const raw = await request<BackendPageResult<ProcessedTask>>({
+    method: 'GET',
+    url: '/workflow/tasks/processed',
+    params: page,
+  })
+  return adaptPage(raw)
 }
 
 // ═══════════════════════════════════════
