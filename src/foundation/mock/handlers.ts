@@ -43,6 +43,7 @@ import {
   MOCK_ROLES_LIST,
   MOCK_DEPTS_LIST,
   MOCK_POSTS_LIST,
+  MOCK_STORAGE_FILES,
 } from './seeds'
 
 // ─── 注册条目类型 ────────────────────────────────────────
@@ -1048,6 +1049,100 @@ export const mockRegistrations: MockRegistration[] = [
       const idx = MOCK_POSTS_LIST.findIndex((p) => p.id === id)
       if (idx === -1) return { code: 0, message: 'ok', data: null }
       MOCK_POSTS_LIST.splice(idx, 1)
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+
+  // ── 文件存储：分页列表 ─────────────────────────────────
+  // GET /api/storage/files?page=&size=
+  // query 参数名 page/size 对齐 listFiles() 发送的 axios params
+  // 响应字段 pageNum/pageSize 对齐后端 MP Page Jackson 序列化
+  {
+    method: 'GET',
+    pattern: '/api/storage/files',
+    handler: (_params, query) => {
+      const page = Number(query.page ?? 1)
+      const size = Number(query.size ?? 10)
+      const total = MOCK_STORAGE_FILES.length
+      const start = (page - 1) * size
+      const records = MOCK_STORAGE_FILES.slice(start, start + size)
+      return {
+        code: 0,
+        message: 'ok',
+        data: { records, total, pageNum: page, pageSize: size },
+      }
+    },
+  },
+
+  // ── 文件存储：上传 ────────────────────────────────────
+  // POST /api/storage/files/upload (multipart/form-data)
+  // Mock 模式不解析 FormData body，直接返回静态上传结果
+  {
+    method: 'POST',
+    pattern: '/api/storage/files/upload',
+    handler: (_params, _query, _body) => {
+      const id = MOCK_STORAGE_FILES.length + 1
+      const now = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00')
+        .toISOString()
+        .replace('T', ' ')
+        .slice(0, 19)
+      const storageKey = `mock-upload-${id}-${Date.now()}`
+      MOCK_STORAGE_FILES.unshift({
+        id,
+        originalName: '新上传的文件.txt',
+        storageKey,
+        storageName: storageKey,
+        fileSize: 1024,
+        contentType: 'text/plain',
+        fileExt: 'txt',
+        providerType: 'local',
+        bucketName: 'default',
+        storageUrl: `/upload/${storageKey}`,
+        createTime: now,
+        updateTime: now,
+        createBy: 1,
+        updateBy: 1,
+      })
+      return {
+        code: 0,
+        message: 'ok',
+        data: {
+          storageKey,
+          storageName: storageKey,
+          storageUrl: `/upload/${storageKey}`,
+          fileSize: 1024,
+        },
+      }
+    },
+  },
+
+  // ── 文件存储：查询详情 ─────────────────────────────
+  // GET /api/storage/files/:storageKey
+  {
+    method: 'GET',
+    pattern: '/api/storage/files/:storageKey',
+    handler: (params) => {
+      const { storageKey } = params as Record<string, string>
+      const file = MOCK_STORAGE_FILES.find((f) => f.storageKey === storageKey)
+      if (!file) {
+        return { code: 404, message: '文件不存在', data: null }
+      }
+      return { code: 0, message: 'ok', data: { ...file } }
+    },
+  },
+
+  // ── 文件存储：删除 ─────────────────────────────────
+  // DELETE /api/storage/files/:storageKey
+  // 幂等：不存在的 storageKey 也返回 code: 0
+  {
+    method: 'DELETE',
+    pattern: '/api/storage/files/:storageKey',
+    handler: (params) => {
+      const { storageKey } = params as Record<string, string>
+      const idx = MOCK_STORAGE_FILES.findIndex((f) => f.storageKey === storageKey)
+      if (idx !== -1) {
+        MOCK_STORAGE_FILES.splice(idx, 1)
+      }
       return { code: 0, message: 'ok', data: null }
     },
   },

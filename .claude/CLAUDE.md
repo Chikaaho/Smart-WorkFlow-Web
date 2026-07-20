@@ -224,15 +224,167 @@ redirect 同源、mock 不污染 modules）不允许在没有等价替代时删�
 
 ---
 
-## 7. 编码规范（硬约束）
+## 7. 常用命令
 
-### 7.1 工具库：优先成熟开源
+```bash
+pnpm install                    # 安装依赖
+pnpm dev                        # 开发服务器（直连后端）
+pnpm dev:mock                   # 开发服务器（Mock 模式，MSW 拦截，零后端依赖）
+pnpm typecheck                  # vue-tsc 类型检查
+pnpm lint                       # ESLint + 架构边界规则
+pnpm lint --fix                 # 自动修复
+pnpm test                       # vitest run 全量单测
+pnpm test -- -t "UserList"      # 按名称过滤测试
+pnpm test src/modules/system/views/UserList.spec.ts  # 运行单个测试文件
+pnpm test -- --watch            # watch 模式
+pnpm build                      # vue-tsc + vite build 生产构建
+pnpm preview                    # 预览生产构建产物
+pnpm gen:api-types              # 从后端 Swagger 生成类型（需 SWAGGER_URL 环境变量）
+pnpm audit --registry https://registry.npmjs.org/  # 依赖安全审计
+```
+
+> **`pnpm dev`/`pnpm dev:mock` 不允许做阻塞式校验**——它没有确定退出码。
+> 校验门唯一合法判据是 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 四连全绿。
+
+---
+
+## 8. 强制内部边界（ESLint）
+
+`eslint.config.js` 定义了以下架构边界规则，所有代码必须遵守：
+
+- `modules/*` 禁止直引 `axios`、`dompurify`、`expr-eval-fork`、`form-create`、`@form-create/*`、`bpmn-js`、`@vue-flow/*`，只能走 `foundation/*`、`security/*`、`adapters/*`、`contracts/*`。
+- `modules/A` 禁止 import `modules/B`（业务模块之间不允许横向耦合）。
+- `axios` 全局只允许在 `foundation/request/**` 内出现。
+- `dompurify`、`expr-eval-fork` 全局只允许在 `security/**` 内出现。
+- `v-html` 全局禁止，唯一例外是 `security/SafeHtml.vue`。
+- `src/contracts/api-types/**` 标记为生成产物，禁止手动编辑。
+- **Element Plus 经按需自动导入**（`unplugin-vue-components` + `unplugin-auto-import` + `ElementPlusResolver`）：组件全局按需注册、`ElMessage` 等 API 自动引入，`modules/*` 里不出现 `element-plus` 的显式 import 语句。
+
+---
+
+## 9. 安全基线
+
+- **ESLint 全局禁 `eval`/`new Function`**，禁业务层裸 `v-html`。
+- **CSP**：`vite.config.ts` 通过 `cspMetaPlugin` 向 `index.html` 注入 `<meta http-equiv="Content-Security-Policy">`。`script-src 'self'` 严格（禁 `unsafe-inline`/`unsafe-eval`）；`style-src 'self' 'unsafe-inline'`（Element Plus 弹层运行时用内联 style）。
+- **token 仅内存**：全仓库无 `localStorage`/`sessionStorage` 写入。
+- **单一请求层**：`foundation/request` 已区分 401（清态跳登录）与其他状态码。
+- **表达式安全**：`security/safe-eval` 封装 `expr-eval-fork`，禁 `eval`/`new Function`。
+- **v-html 唯一出口**：`security/SafeHtml.vue`，经 dompurify 过滤。
+- **open redirect 防护**：路由守卫同源校验。
+
+---
+
+## 10. Mock 系统架构
+
+来自 `foundation/mock/`，在 `dev:mock` 模式下激活，经过 tree-shake 不进入生产构建产物。
+
+### 核心机制
+
+- **MockHandler 签名**：`(params: Record<string, string>, query: Record<string, string>, body: unknown) => ApiResponse<T>`
+- **MockRegistration**：`{ method: MockMethod; pattern: \`/${string}\`; handler: MockHandler }`
+- **注册机制**：`handlers.ts` 导出 `mockRegistrations: MockRegistration[]`；`index.ts` 集中注册到 `Map<RegistryKey, MockHandler>`
+- **路径匹配**：支持 `:param` 占位符（如 `/api/system/user/:id`），匹配基于 `${METHOD} ${resolvedPathname}`
+- **URL 拼接**：`baseURL(/api) + url` → 完整路径
+- **响应形状**：`{ code: number, message: string, data: T | null }` — 即 `ApiResponse<T>`
+- **激活条件**：`import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true'`
+
+### 新增 Handler 模式
+
+```typescript
+export const mockRegistrations: MockRegistration[] = [
+  ...,
+  {
+    method: 'POST',
+    pattern: '/api/system/user/page',
+    handler: (_params, query, body) => {
+      // query.pageNum / query.pageSize — URL 查询参数
+      // body — POST 请求体（filter 对象）
+      return { code: 0, message: 'ok', data: { records, total, pageNum, pageSize } }
+    },
+  },
+]
+```
+
+### 可变数据原则
+
+种子数据在 `seeds.ts` 中用 `const` 声明数组/Map，handler 中通过 `.push()`/`.splice()`/索引赋值原地 mutate。
+Delete handler 应幂等（不存在的记录也返回 `code: 0`）。
+Update handler 应合并字段而非整体替换（保留 `createTime`/`isAdmin`/`builtIn` 等不可变字段）。
+
+---
+
+## 11. 测试模式（常驻回归测试）
+
+### 页面组件测试模式
+
+所有列表页测试（`*List.spec.ts`）遵循以下模式：
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+
+// Mock API 层
+vi.mock('@/modules/system/api/user')
+
+// 最小桩组件（StandardListTemplate 等页型组件不需要渲染全量 DOM）
+const minimalStubs = {
+  StandardListTemplate: {
+    template:
+      '<div><slot name="toolbar-actions"/><slot name="filter"/><slot name="filter-actions"/><slot/><slot name="empty-action"/></div>',
+    props: ['title', 'total', 'pageNum', 'pageSize', 'empty'],
+  },
+  StandardFormTemplate: {
+    template: '<div><slot name="alert"/><slot/></div>',
+    props: ['title', 'embedded'],
+  },
+  'el-dialog': {
+    template: '<div v-if="modelValue"><slot/><slot name="footer"/></div>',
+    props: ['modelValue'],
+  },
+  'el-table': { template: '<div><slot/></div>', props: ['data'] },
+  'el-button': { template: '<button><slot/></button>', props: ['disabled'] },
+}
+
+describe('UserList', () => {
+  it('mounts and calls pageUsers', async () => {
+    const wrapper = mount(await import('@/modules/system/views/UserList.vue'), {
+      global: { stubs: minimalStubs },
+    })
+    expect(pageUsers).toHaveBeenCalledTimes(1)
+  })
+})
+```
+
+### 测试断言要点
+
+- `wrapper.vm` 的暴露方法通过 `wrapper.vm as unknown as { methodName: ... }` 类型断言调用
+- API mock 使用 `mockResolvedValue` 控制返回值，断言 `toHaveBeenCalledWith` 验证参数
+- 删除操作测试：先 mock `ElMessageBox.confirm` 为 `mockResolvedValue(undefined)`，再断言 API 调用
+- DeptList（树形表格）不使用 `StandardListTemplate`，手写布局测试，桩更少
+
+### 重要不变量（常驻回归测试）
+
+以下不变量有专门测试钉死，重构改名时同步更新断言，不弱化强度：
+
+- sanitize 过滤 `<script>` 标签 — `security/sanitize`
+- safeEval 隔离全局变量 — `security/safe-eval`
+- token 不进入 localStorage/sessionStorage — `foundation/auth/token`
+- redirect 同源校验（open-redirect 防护）
+- 菜单单一数据源（同一份 `loadMenu()` 喂路由和侧边栏）
+- 导入边界（modules 禁互引、禁直引危险库）
+- 路由守卫（不循环、404-last、rebuild 幂等）
+
+---
+
+## 12. 编码规范（硬约束）
+
+### 12.1 工具库：优先成熟开源
 
 - 需要工具能力时优先选社区活跃、易维护的成熟开源库，不自造轮子、不引冷门库。
 - 受**单一请求层**约束：HTTP 一律走 `foundation/request`（封装 axios），业务层禁直引第三方 HTTP 库。
 - 受**防腐层**约束：易变/危险第三方（form-create、bpmn-js、vue-flow、dompurify、求值器）一律套自有薄接口，原生 API 不得泄漏到业务层。
 
-### 7.2 命名与目录
+### 12.2 命名与目录
 
 - `src/modules/lowcode/` 已整体重命名为 **`src/modules/form/`**（目录、组件名去 `Lowcode` 前缀、
   路由 name/path 去 `lowcode`、菜单 component 路径、glob 覆盖、测试断言全部对齐 form）。
@@ -240,29 +392,29 @@ redirect 同源、mock 不污染 modules）不允许在没有等价替代时删�
 
 ---
 
-## 8. AI 协作执行纪律
+## 13. AI 协作执行纪律
 
-### 8.1 沟通 vs 执行判定（硬约束）
+### 13.1 沟通 vs 执行判定（硬约束）
 
 - **默认沟通模式**：作者消息中无「执行方案」「执行」「实现」「直接做」「开始写代码」等明确执行指令时，一律视为沟通——反复确认需求、澄清模糊点，直到信息充足度 ≥ 90%。
 - **执行模式**：仅当作者明确给出执行指令 + 需求已充分澄清时，才产出钉死约束的执行方案并执行。
 - **禁止猜测意图直接写代码**。
 
-### 8.2 模型选择（硬约束）
+### 13.2 模型选择（硬约束）
 
 - **默认 `deepseek-v4-flash`**：所有日常编码、文件读写、机械实现一律走 Flash。
 - **升 Pro 条件**：仅在 Flash 明确无法处理时（多文件协同接缝口径一致性 / 既有渲染路径复杂改动 / 结构性易错重构）才切换到 `deepseek-v4-pro`。
 - **升 Pro 必须告知**：切换时向作者说明「为什么 Flash 不够用、Pro 要解决什么」。
 - **本项目仅限 DeepSeek 系列模型，禁止使用 Claude 系列模型**（Opus / Sonnet / Haiku / Fable）。
 
-### 8.3 校验门
+### 13.3 校验门
 
 - 四连全绿 + 测试计数账（基线不漂移，增减须能精确对应到具体改动）。
 - 执行 prompt 自带自查回执：改动文件清单、开关/用法、四连结果与测试计数、易错点为何不复发。
 
 ---
 
-## 9. 详细看哪
+## 14. 详细看哪
 
 | 要什么                                                | 看哪                                                      |
 | ----------------------------------------------------- | --------------------------------------------------------- |
