@@ -79,9 +79,11 @@ export async function authGuard(
 
   if (!getAccessToken()) {
     try {
-      // 冷启动静默刷新：seam 当前必失败（无端点），真端点落地后此分支用于免登录直接进入。
+      // 冷启动静默续登：浏览器自动携带 rt cookie 调 /auth/refresh，
+      // 成功后 access 回到内存，继续加载 session + menu 构建动态路由。
       await refresh()
     } catch {
+      // refresh 失败（无 cookie / 已过期 / 已撤销）→ 重定向登录页
       next(loginRedirectTarget(to))
       return
     }

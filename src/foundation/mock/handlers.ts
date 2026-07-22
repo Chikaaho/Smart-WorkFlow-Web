@@ -59,14 +59,46 @@ export interface MockRegistration {
 // ─── Handler 实现 ─────────────────────────────────────────
 
 export const mockRegistrations: MockRegistration[] = [
-  // ── 登录/会话 ────────────────────────────────────────────
+  // ── 登录/会话（双 token 契约，对齐 F1 的 TokenResponseDTO） ──
   {
     method: 'POST',
     pattern: '/api/auth/login',
-    handler: (_params, _query, _body) => ({
+    handler: (_params, _query, body) => {
+      const payload = body as { username?: string; password?: string } | undefined
+      const username = payload?.username ?? 'admin'
+      return {
+        code: 0,
+        message: 'ok',
+        data: {
+          accessToken: 'mock-access-token-' + username + '-' + Date.now(),
+          expiresIn: 900,
+        },
+      }
+    },
+  },
+
+  // ── Token 刷新（mock 模式：直接返回新 token，无需 cookie） ──
+  {
+    method: 'POST',
+    pattern: '/api/auth/refresh',
+    handler: () => ({
       code: 0,
       message: 'ok',
-      data: 'mock-access-token-' + Date.now(),
+      data: {
+        accessToken: 'mock-refreshed-token-' + Date.now(),
+        expiresIn: 900,
+      },
+    }),
+  },
+
+  // ── 登出（mock 模式：幂等，始终返回成功） ──
+  {
+    method: 'POST',
+    pattern: '/api/auth/logout',
+    handler: () => ({
+      code: 0,
+      message: 'ok',
+      data: null,
     }),
   },
 

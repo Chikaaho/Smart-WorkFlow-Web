@@ -1,10 +1,18 @@
 import { request } from '@/foundation/request'
-import { getAccessToken, setAccessToken, getCurrentUsername, setCurrentUsername } from './token'
+import { getAccessToken, getCurrentUsername, setTokenResponse, clearToken } from './token'
 
-/**
- * 登录流程壳。token 读写收口在 ./token（被 foundation/request 复用，避免循环依赖）。
- * refresh/logout 对应的后端端点尚不存在（决策文档 v2 §0/§6），保留为留空 seam。
- */
+// ========== DTO（后端形状，不提升为 contract） ==========
+
+interface TokenResponseDTO {
+  accessToken: string
+  expiresIn: number
+}
+
+// ========== 单飞锁 ==========
+
+let refreshPromise: Promise<void> | null = null
+
+// ========== 公开 API ==========
 
 export interface LoginPayload {
   username: string
@@ -14,24 +22,44 @@ export interface LoginPayload {
 export { getAccessToken, getCurrentUsername }
 
 export async function login(payload: LoginPayload): Promise<void> {
-  const token = await request<string>({
+  const data = await request<TokenResponseDTO>({
     method: 'POST',
     url: '/auth/login',
     data: payload,
   })
-  setCurrentUsername(payload.username)
-  setAccessToken(token)
+  setTokenResponse(data.accessToken, data.expiresIn, payload.username)
 }
 
 export async function logout(): Promise<void> {
-  setAccessToken(null)
-  setCurrentUsername(null)
-  // TODO(skeleton): /auth/logout 端点不存在，见决策文档 §6；端点落地后在此调用使会话失效。
+  try {
+    await request<null>({ method: 'POST', url: '/auth/logout' })
+  } catch {
+    // 网络断开 / 端点异常时静默吞掉，确保 finally 中的本地清除被执行
+  } finally {
+    clearToken()
+  }
 }
 
 export async function refresh(): Promise<void> {
-  // TODO(skeleton): /auth/refresh 端点不存在，见决策文档 §6；端点落地后按文档 §2 算法补单飞刷新逻辑。
-  throw new Error('NOT_IMPLEMENTED: /auth/refresh seam, see decision doc §6')
+  // 单飞：如果已有 refresh 在进行中，等它完成
+  if (refreshPromise) {
+    return refreshPromise
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const data = await request<TokenResponseDTO>({
+        method: 'POST',
+        url: '/auth/refresh',
+      })
+      setTokenResponse(data.accessToken, data.expiresIn)
+    } finally {
+      // 无论成败，释放单飞锁。失败时调用方（请求拦截器/guard）各自处理异常
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
 }
 
 export function useAuth() {

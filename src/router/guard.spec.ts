@@ -72,6 +72,25 @@ describe('router/guard authGuard', () => {
     expect(next).toHaveBeenCalledWith({ path: '/login', query: { redirect: '/system' } })
   })
 
+  it('no token + refresh succeeds (cold start with rt cookie) -> builds routes and enters', async () => {
+    vi.mocked(getAccessToken).mockReturnValue(null)
+    vi.mocked(refresh).mockResolvedValue(undefined)
+    vi.mocked(loadSession).mockResolvedValue(placeholderSession)
+    vi.mocked(loadMenu).mockResolvedValue([])
+    vi.mocked(buildRoutesFromMenu).mockReturnValue([
+      { path: 'system', name: 'system', component: () => Promise.resolve({ default: {} }) },
+    ])
+
+    const next = vi.fn()
+    const to = toRoute({ fullPath: '/system', path: '/system' })
+    await authGuard(router, to, toRoute({}), next)
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(loadSession).toHaveBeenCalledTimes(1)
+    expect(loadMenu).toHaveBeenCalledTimes(1)
+    expect(next).toHaveBeenCalledWith({ ...to, replace: true })
+  })
+
   it('token present + routes not built: assembles session/menu, adds routes, registers 404 last, re-enters via replace', async () => {
     vi.mocked(getAccessToken).mockReturnValue('token-123')
     vi.mocked(loadSession).mockResolvedValue(placeholderSession)

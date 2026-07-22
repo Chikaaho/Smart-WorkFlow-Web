@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { authGuard, clearDynamicRoutes, ROOT_LAYOUT_NAME } from './guard'
-import { setUnauthorizedHandler } from '@/foundation/request'
+import { setUnauthorizedHandler, setRefreshHandler } from '@/foundation/request'
 import { findFirstLeafPath } from '@/foundation/menu'
 import { useMenuStore } from '@/stores/menu'
+import { refresh } from '@/foundation/auth'
 
 /**
  * 解析登录后默认落地的第一个可访问叶子。
@@ -107,3 +108,6 @@ setUnauthorizedHandler((redirectPath) => {
     query: redirectPath && redirectPath !== '/login' ? { redirect: redirectPath } : undefined,
   })
 })
+
+// 注入 refresh 函数供请求拦截器到期刷新使用（依赖反转，避免循环依赖）
+setRefreshHandler(refresh)

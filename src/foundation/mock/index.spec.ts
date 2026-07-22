@@ -27,11 +27,38 @@ describe('foundation/mock/index', () => {
   it('registry 有已注册的 handler', async () => {
     const mod = await import('@/foundation/mock/index')
 
-    // 验证 login handler 存在
-    const loginResult = await mod.dispatchMock('POST', '/auth/login', '/api', {}, {})
+    // 验证 login handler 存在（F1 契约：R<TokenResponseDTO>）
+    const loginResult = await mod.dispatchMock(
+      'POST',
+      '/auth/login',
+      '/api',
+      {},
+      {
+        username: 'admin',
+        password: 'admin123',
+      },
+    )
     expect(loginResult).toBeDefined()
     expect(loginResult!.code).toBe(0)
-    expect(typeof loginResult!.data).toBe('string')
+    expect(loginResult!.data).toMatchObject({
+      accessToken: expect.any(String) as string,
+      expiresIn: 900,
+    })
+
+    // 验证 refresh handler 存在（F1 契约：R<TokenResponseDTO>）
+    const refreshResult = await mod.dispatchMock('POST', '/auth/refresh', '/api', {}, {})
+    expect(refreshResult).toBeDefined()
+    expect(refreshResult!.code).toBe(0)
+    expect(refreshResult!.data).toMatchObject({
+      accessToken: expect.any(String) as string,
+      expiresIn: 900,
+    })
+
+    // 验证 logout handler 存在（幂等，返回 R<null>）
+    const logoutResult = await mod.dispatchMock('POST', '/auth/logout', '/api', {}, {})
+    expect(logoutResult).toBeDefined()
+    expect(logoutResult!.code).toBe(0)
+    expect(logoutResult!.data).toBeNull()
 
     // 验证 dict handler 存在
     const dictResult = await mod.dispatchMock('GET', '/system/dict/data/list/dept', '/api', {}, {})

@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios'
 import type { ApiResponse } from '@/contracts/common'
-import { getAccessToken } from '@/foundation/auth/token'
+import { getAccessToken, isTokenNearExpiry } from '@/foundation/auth/token'
 import { getErrorMessage } from './error-code-map'
 
 /**
@@ -11,9 +11,9 @@ const client: AxiosInstance = axios.create({
   timeout: 10_000,
 })
 
-// /auth/login、/auth/refresh 自身的 401/未授权响应不走全局跳登录处理，
+// /auth/login、/auth/refresh、/auth/logout 自身的 401/未授权响应不走全局跳登录处理，
 // 否则登录页的"账密错误"提示会被误判成会话失效并清态跳转。
-const AUTH_ENDPOINTS_EXCLUDED_FROM_401_HANDLING = ['/auth/login', '/auth/refresh']
+const AUTH_ENDPOINTS_EXCLUDED_FROM_401_HANDLING = ['/auth/login', '/auth/refresh', '/auth/logout']
 
 type UnauthorizedHandler = (redirectPath: string) => void
 
@@ -24,6 +24,15 @@ let unauthorizedHandler: UnauthorizedHandler | null = null
  */
 export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
   unauthorizedHandler = handler
+}
+
+// ========== refreshHandler 依赖注入（避免 request ↔ auth/index 循环依赖） ==========
+
+type RefreshHandler = () => Promise<void>
+let refreshHandler: RefreshHandler | null = null
+
+export function setRefreshHandler(handler: RefreshHandler): void {
+  refreshHandler = handler
 }
 
 /** 后端业务层错误(HTTP 200 + code≠0),上层按 code 映射可读提示。 */
@@ -39,7 +48,24 @@ export class ApiError extends Error {
   }
 }
 
-client.interceptors.request.use((config) => {
+client.interceptors.request.use(async (config) => {
+  const url = config.url ?? ''
+  const isAuthEndpoint = AUTH_ENDPOINTS_EXCLUDED_FROM_401_HANDLING.some((path) =>
+    url.includes(path),
+  )
+
+  // 到期前刷新：只在非 auth 端点、有 token、即将到期时触发
+  if (!isAuthEndpoint && getAccessToken() && isTokenNearExpiry()) {
+    if (refreshHandler) {
+      try {
+        await refreshHandler()
+      } catch {
+        // refresh 失败 → 不清除 token（让响应拦截器的 401 统一处理跳登录）
+      }
+    }
+  }
+
+  // 注入 Bearer token（可能是 refresh 后的新 token，或旧/过期 token）
   const token = getAccessToken()
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`)
