@@ -106,14 +106,29 @@ async function openViewer(row: ProcessDef) {
       return
     }
     viewerInstance = await mountBpmnViewer(bpmnContainerRef.value as HTMLElement, xml)
-    // bpmn-js 渲染完成后自适应画布
+    // bpmn-js 渲染完成后自适应画布（try-fit：即使尺寸未就位也不影响外层错误态）
     await nextTick()
-    viewerInstance.fitViewport()
+    try {
+      viewerInstance.fitViewport()
+    } catch {
+      // 对话框动画可能尚未完成 → 由 @opened 事件重试
+    }
   } catch (e: unknown) {
     viewerError.value =
       (e as Record<string, string>)?.msg || (e as Error)?.message || '流程图加载失败'
   } finally {
     viewerLoading.value = false
+  }
+}
+
+/** 对话框打开动画完成后重试 fitViewport（容器在动画结束前可能尺寸为 0） */
+function onDialogOpened() {
+  if (viewerInstance) {
+    try {
+      viewerInstance.fitViewport()
+    } catch {
+      // 静默忽略：初始渲染位置已由 mountBpmnViewer 确定
+    }
   }
 }
 
@@ -200,6 +215,7 @@ onMounted(loadList)
       :close-on-click-modal="false"
       destroy-on-close
       width="900px"
+      @opened="onDialogOpened"
       @closed="closeViewer"
     >
       <div
@@ -213,12 +229,8 @@ onMounted(loadList)
           :title="viewerError"
           :sub-title="'请确认流程定义已发布且 BPMN XML 有效'"
         />
-        <!-- BPMN 渲染容器 -->
-        <div
-          v-show="!viewerError && !viewerLoading"
-          ref="bpmnContainerRef"
-          style="width: 100%; min-height: 500px"
-        />
+        <!-- BPMN 渲染容器（始终渲染，v-loading 遮罩已遮盖加载态） -->
+        <div ref="bpmnContainerRef" style="width: 100%; min-height: 500px" />
       </div>
     </el-dialog>
   </StandardListTemplate>
