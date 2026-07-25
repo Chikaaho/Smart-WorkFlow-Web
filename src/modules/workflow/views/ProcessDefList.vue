@@ -218,10 +218,7 @@ onMounted(loadList)
       @opened="onDialogOpened"
       @closed="closeViewer"
     >
-      <div
-        v-loading="viewerLoading"
-        style="min-height: 400px; display: flex; align-items: center; justify-content: center"
-      >
+      <div v-loading="viewerLoading" class="bpmn-wrapper">
         <!-- 错误提示 -->
         <el-result
           v-if="viewerError"
@@ -229,8 +226,8 @@ onMounted(loadList)
           :title="viewerError"
           :sub-title="'请确认流程定义已发布且 BPMN XML 有效'"
         />
-        <!-- BPMN 渲染容器（始终渲染，v-loading 遮罩已遮盖加载态） -->
-        <div ref="bpmnContainerRef" style="width: 100%; min-height: 500px" />
+        <!-- BPMN 渲染容器 -->
+        <div ref="bpmnContainerRef" class="bpmn-container" />
       </div>
     </el-dialog>
   </StandardListTemplate>
@@ -242,5 +239,20 @@ onMounted(loadList)
   color: #c0c4cc !important;
   cursor: not-allowed;
   text-decoration: none;
+}
+
+/* BPMN 容器 —— 显式高度确保 bpmn-js 正确计算视口 */
+.bpmn-wrapper {
+  height: 500px;
+  position: relative;
+}
+.bpmn-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* 隐藏 bpmn-js 默认右下角可点击 Logo（水印 + window.open 行为） */
+:deep(.bjs-powered-by) {
+  display: none !important;
 }
 </style>
