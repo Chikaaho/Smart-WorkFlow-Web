@@ -733,6 +733,48 @@ export const mockRegistrations: MockRegistration[] = [
     },
   },
 
+  // ── 流程定义：获取 BPMN XML 流程图 ────────────────────────
+  // GET /api/workflow/defs/:id/bpmn-xml → R<String>
+  // DRAFT 状态返回 code=2104 (PROCESS_NOT_PUBLISHED)
+  {
+    method: 'GET',
+    pattern: '/api/workflow/defs/:id/bpmn-xml',
+    handler: (params) => {
+      const defId = Number((params as Record<string, string>).id)
+      const def = MOCK_PROCESS_DEFS.find((d) => d.id === defId)
+      if (!def || def.status === 'DRAFT') {
+        return { code: 2104, message: '流程定义未发布，无法获取流程图', data: null }
+      }
+      // 返回最简合法的 BPMN 2.0 XML（含 StartEvent + EndEvent）
+      const bpmnXml = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  targetNamespace="http://bpmn.io/schema/bpmn">
+  <process id="${def.processKey}" name="${def.name}" isExecutable="true">
+    <startEvent id="StartEvent_1" name="开始" />
+    <endEvent id="EndEvent_1" name="结束" />
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="${def.processKey}">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="180" y="80" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="400" y="80" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow1_di" bpmnElement="Flow_1">
+        <di:waypoint x="216" y="98" />
+        <di:waypoint x="400" y="98" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>`
+      return { code: 0, message: 'ok', data: bpmnXml }
+    },
+  },
+
   // ── 通知消息：当前用户通知列表 ──────────────────────────
   {
     method: 'GET',

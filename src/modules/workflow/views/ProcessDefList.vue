@@ -1,16 +1,19 @@
 <script setup lang="ts">
+/* global Element, HTMLElement */
 /**
  * ProcessDefList — 流程定义列表页（页型 B）。
  *
  * 只读分页列表，套 StandardListTemplate。
  * 不提供创建/编辑/删除/发布操作（非本功能范围）。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { StandardListTemplate } from '@/components/page-layout'
-import { pageProcessDefs } from '@/modules/workflow/api'
+import { pageProcessDefs, getProcessDefGraph } from '@/modules/workflow/api'
 import type { ProcessDef } from '@/contracts/bpm'
 import type { PageQuery } from '@/contracts/common'
 import { ApiError } from '@/foundation/request'
+import { mountBpmnViewer } from '@/adapters/bpmn'
+import type { BpmnViewerInstance } from '@/adapters/bpmn'
 
 // ─── 状态映射（与 FormDefStatus 完全对称） ───
 
@@ -40,6 +43,14 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 const isEmpty = computed(() => !loading.value && !errorMsg.value && list.value.length === 0)
+
+// ─── 查看流程图对话框 ───
+const viewerVisible = ref(false)
+const viewerLoading = ref(false)
+const viewerError = ref('')
+const currentDefName = ref('')
+const bpmnContainerRef = ref<Element | null>(null)
+let viewerInstance: BpmnViewerInstance | null = null
 
 async function loadList() {
   loading.value = true
@@ -75,6 +86,55 @@ function handlePageSizeChange(s: number) {
 function statusRow(r: unknown) {
   return r as ProcessDef
 }
+
+// ─── 查看流程图 ───
+
+/** 打开查看流程图对话框 */
+async function openViewer(row: ProcessDef) {
+  currentDefName.value = row.name
+  viewerVisible.value = true
+  viewerLoading.value = true
+  viewerError.value = ''
+
+  // 等待 DOM 更新后容器元素就位
+  await nextTick()
+
+  try {
+    const xml = await getProcessDefGraph(row.id)
+    if (!bpmnContainerRef.value) {
+      viewerError.value = '渲染容器未找到'
+      return
+    }
+    viewerInstance = await mountBpmnViewer(bpmnContainerRef.value as HTMLElement, xml)
+    // bpmn-js 渲染完成后自适应画布
+    await nextTick()
+    viewerInstance.fitViewport()
+  } catch (e: unknown) {
+    viewerError.value =
+      (e as Record<string, string>)?.msg || (e as Error)?.message || '流程图加载失败'
+  } finally {
+    viewerLoading.value = false
+  }
+}
+
+/** 关闭对话框并清理 bpmn viewer 实例 */
+function closeViewer() {
+  if (viewerInstance) {
+    viewerInstance.destroy()
+    viewerInstance = null
+  }
+  viewerVisible.value = false
+  viewerError.value = ''
+  viewerLoading.value = false
+}
+
+// 组件卸载时防御性清理
+onBeforeUnmount(() => {
+  if (viewerInstance) {
+    viewerInstance.destroy()
+    viewerInstance = null
+  }
+})
 
 onMounted(loadList)
 </script>
@@ -118,6 +178,48 @@ onMounted(loadList)
         </template>
       </el-table-column>
       <el-table-column prop="updateTime" label="更新时间" width="180" />
+      <el-table-column label="操作" width="120" fixed="right">
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            link
+            type="primary"
+            :disabled="(row as ProcessDef).status === 'DRAFT'"
+            @click="openViewer(row as ProcessDef)"
+          >
+            查看流程图
+          </el-button>
+        </template>
+      </el-table-column>
     </el-table>
+
+    <!-- 查看流程图对话框 -->
+    <el-dialog
+      v-model="viewerVisible"
+      :title="`流程图 - ${currentDefName}`"
+      :close-on-click-modal="false"
+      destroy-on-close
+      width="900px"
+      @closed="closeViewer"
+    >
+      <div
+        v-loading="viewerLoading"
+        style="min-height: 400px; display: flex; align-items: center; justify-content: center"
+      >
+        <!-- 错误提示 -->
+        <el-result
+          v-if="viewerError"
+          icon="error"
+          :title="viewerError"
+          :sub-title="'请确认流程定义已发布且 BPMN XML 有效'"
+        />
+        <!-- BPMN 渲染容器 -->
+        <div
+          v-show="!viewerError && !viewerLoading"
+          ref="bpmnContainerRef"
+          style="width: 100%; min-height: 500px"
+        />
+      </div>
+    </el-dialog>
   </StandardListTemplate>
 </template>

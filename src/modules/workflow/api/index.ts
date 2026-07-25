@@ -84,3 +84,15 @@ export async function pageProcessDefs(page: PageQuery): Promise<PageResult<Proce
   })
   return adaptPage(raw)
 }
+
+/**
+ * 获取流程定义已部署的原始 BPMN XML 流程图
+ * @param id 流程定义 ID
+ * @returns BPMN XML 字符串
+ */
+export async function getProcessDefGraph(id: number): Promise<string> {
+  return request<string>({
+    method: 'GET',
+    url: `/workflow/defs/${id}/bpmn-xml`,
+  })
+}
