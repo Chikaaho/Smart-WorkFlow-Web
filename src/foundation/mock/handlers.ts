@@ -754,6 +754,7 @@ export const mockRegistrations: MockRegistration[] = [
   targetNamespace="http://bpmn.io/schema/bpmn">
   <process id="${def.processKey}" name="${def.name}" isExecutable="true">
     <startEvent id="StartEvent_1" name="开始" />
+    <sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="EndEvent_1" />
     <endEvent id="EndEvent_1" name="结束" />
   </process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">

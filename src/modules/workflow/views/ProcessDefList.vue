@@ -235,3 +235,12 @@ onMounted(loadList)
     </el-dialog>
   </StandardListTemplate>
 </template>
+
+<style scoped>
+/* 操作列禁用态按钮：与已发布行蓝色可点链接形成清晰视觉反差 */
+:deep(.el-button.is-link.is-disabled) {
+  color: #c0c4cc !important;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+</style>
