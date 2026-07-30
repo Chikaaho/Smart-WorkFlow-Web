@@ -63,8 +63,8 @@
 | expr-eval-fork          | ^3.0.3   | 安全表达式求值（expr-eval 修复分支） |
 | @form-create/designer   | ^3.5.0   | 表单设计器内核                       |
 | @form-create/element-ui | ^3.3.1   | 表单渲染器                           |
-| bpmn-js                 | ^18.18.0 | BPMN 流程设计器（待集成）            |
-| @vue-flow/core          | ^1.48.2  | 流程图设计器（待集成）               |
+| bpmn-js                 | ^18.18.0 | BPMN 查看器                          |
+| @vue-flow/core          | ^1.48.2  | 流程图（adapter 已就绪）             |
 | vue-draggable-plus      | ^0.6.1   | 拖拽排序                             |
 
 ### 开发工具链
@@ -115,8 +115,8 @@ src/
 │
 ├─ adapters/           易变第三方库防腐层
 │   ├─ form-designer/  form-create 防腐层（含 FormPreview 组件）
-│   ├─ bpmn/           BPMN adapter（未实现）
-│   └─ flow-graph/     Vue Flow adapter（未实现）
+│   ├─ bpmn/           bpmn-js 查看器防腐层 ✅
+│   └─ flow-graph/     Vue Flow 防腐层 ✅
 │
 ├─ modules/            业务模块（对应后端 sw-biz-*）
 │   ├─ form/           表单模块（最完整，含设计器 + 渲染器）
@@ -125,9 +125,11 @@ src/
 │   │   ├─ components/ ReferenceSelector 等业务组件
 │   │   ├─ api/        表单相关 API 封装
 │   │   └─ utils/      接缝纯函数（设计时可自定义的取值逻辑）
-│   ├─ system/         系统管理（字典管理已实现）
-│   ├─ workflow/       工作流（占位）
-│   ├─ notify/         通知（占位）
+│   ├─ system/         系统管理（字典/用户/角色/部门/岗位 CRUD）
+│   ├─ workflow/       工作流（待办/流程定义/流程监控）
+│   ├─ notify/         通知（通知列表/标记已读）
+│   ├─ storage/        文件管理（上传/列表/下载/删除）
+│   ├─ job/            定时任务（CRUD + 暂停/恢复/触发/日志）
 │   ├─ agent/          AI Agent（占位）
 │   ├─ iot/            IoT（占位）
 │   └─ openapi/        OpenAPI（占位）
