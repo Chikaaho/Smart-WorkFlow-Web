@@ -1,9 +1,10 @@
 # Smart-WorkFlow 前端（sw-web）
 
 > 低代码 OA + AI Agent 平台的前端单应用。
-> 配套后端：Java 21 / Spring Boot 3.4 / MyBatis-Plus / Flowable，模块化单体。
+> 配套后端：[Smart-WorkFlow](https://github.com/Chikaaho/Smart-WorkFlow)（Java 21 / Spring Boot 3.4）
+> 规划知识库：[Smart-WorkFlow-Knowledge](https://github.com/Chikaaho/Smart-WorkFlow-Knowledge)（方案/回执/知识库）
 >
-> 架构决策与现状详见《Smart-WorkFlow-前端架构与现状-知识库.md》。
+> 本仓库是 Smart-WorkFlow 三件套之一。
 
 ---
 
@@ -25,22 +26,24 @@
 
 ## 项目状态
 
-| 模块 | 状态 | 说明 |
-|------|------|------|
-| 登录/认证 | ✅ 真接 | `POST /auth/login` 已联通 |
-| 菜单系统 | ✅ 动态路由 | 菜单驱动路由构建 + 侧边栏渲染 |
-| 权限系统 | ✅ 骨架就绪 | `v-perm` 指令、`hasPerm`/`hasRole` 可用 |
-| 字典 | ✅ 真接 | 字典接口已联通，含 DictSelect/DictTag 组件 |
-| 表单设计器 | ✅ 功能完整 | 8 字段类型拖拽设计、配置面板、预览、子表设计 |
-| 表单渲染 | ✅ 功能完整 | 运行时表单渲染、动态字段分发、REFERENCE 选择器 |
-| 系统管理（字典） | ✅ 增删改查 | 字典类型/数据管理 |
-| 通知 | 🔲 占位 | 路由/菜单已注册 |
-| 工作流 | 🔲 占位 | 路由/菜单已注册 |
-| IoT | 🔲 占位 | 路由/菜单已注册 |
-| Agent | 🔲 占位 | 路由/菜单已注册 |
-| OpenAPI | 🔲 占位 | 路由/菜单已注册 |
-| BPMN 集成 | 📦 依赖就绪 | adapter 未实现 |
-| Vue Flow 集成 | 📦 依赖就绪 | adapter 未实现 |
+| 模块          | 状态            | 说明                                                                   |
+| ------------- | --------------- | ---------------------------------------------------------------------- |
+| 登录/认证     | ✅ 真接         | 双 token 管线（access 内存 + refresh cookie），静默续期                |
+| 菜单系统      | ✅ 动态路由     | 菜单驱动路由构建 + 侧边栏渲染                                          |
+| 权限系统      | ✅ 骨架就绪     | `v-perm` 指令、`hasPerm`/`hasRole` 可用                                |
+| 字典          | ✅ 真接         | 字典接口已联通，含 DictSelect/DictTag 组件                             |
+| 表单设计器    | ✅ 功能完整     | 8 字段类型拖拽设计、配置面板、预览、子表设计                           |
+| 表单渲染      | ✅ 功能完整     | 运行时表单渲染、动态字段分发、REFERENCE 选择器                         |
+| 系统管理      | ✅ 完整 CRUD    | 字典/用户/角色/部门/岗位管理                                           |
+| 通知          | ✅ 已落地       | NotifyHome 通知列表 + 标记已读                                         |
+| 工作流        | ✅ 已联通       | TodoList 待办 + ProcessDefList 流程定义 + ProcessInstanceList 流程监控 |
+| 定时任务      | ✅ 完整         | JobList CRUD + JobLog 日志 + 暂停/恢复/触发                            |
+| 文件管理      | ✅ 完整         | StorageList 上传/列表/下载/删除                                        |
+| BPMN 集成     | ✅ 查看器已实现 | `adapters/bpmn/` 防腐层 + 两个消费方（流程图查看 + 流程监控高亮）      |
+| Vue Flow 集成 | ✅ adapter 就绪 | `adapters/flow-graph/` 防腐层（零消费方，M07 AI 调度图未就位）         |
+| IoT           | 🔲 占位         | 路由/菜单已注册                                                        |
+| Agent         | 🔲 占位         | 路由/菜单已注册                                                        |
+| OpenAPI       | 🔲 占位         | 路由/菜单已注册                                                        |
 
 ---
 
@@ -48,39 +51,39 @@
 
 ### 运行时依赖
 
-| 包 | 版本 | 用途 |
-|---|---|---|
-| vue | ^3.5.38 | 框架 |
-| vue-router | ^5.1.0 | 路由 |
-| pinia | ^3.0.4 | 状态管理 |
-| vue-i18n | ^11.4.6 | 国际化 |
-| element-plus | ^2.14.2 | UI 组件库 |
-| axios | ^1.18.1 | HTTP 请求 |
-| dompurify | ^3.4.11 | HTML 安全过滤 |
-| expr-eval-fork | ^3.0.3 | 安全表达式求值（expr-eval 修复分支） |
-| @form-create/designer | ^3.5.0 | 表单设计器内核 |
-| @form-create/element-ui | ^3.3.1 | 表单渲染器 |
-| bpmn-js | ^18.18.0 | BPMN 流程设计器（待集成） |
-| @vue-flow/core | ^1.48.2 | 流程图设计器（待集成） |
-| vue-draggable-plus | ^0.6.1 | 拖拽排序 |
+| 包                      | 版本     | 用途                                 |
+| ----------------------- | -------- | ------------------------------------ |
+| vue                     | ^3.5.38  | 框架                                 |
+| vue-router              | ^5.1.0   | 路由                                 |
+| pinia                   | ^3.0.4   | 状态管理                             |
+| vue-i18n                | ^11.4.6  | 国际化                               |
+| element-plus            | ^2.14.2  | UI 组件库                            |
+| axios                   | ^1.18.1  | HTTP 请求                            |
+| dompurify               | ^3.4.11  | HTML 安全过滤                        |
+| expr-eval-fork          | ^3.0.3   | 安全表达式求值（expr-eval 修复分支） |
+| @form-create/designer   | ^3.5.0   | 表单设计器内核                       |
+| @form-create/element-ui | ^3.3.1   | 表单渲染器                           |
+| bpmn-js                 | ^18.18.0 | BPMN 流程设计器（待集成）            |
+| @vue-flow/core          | ^1.48.2  | 流程图设计器（待集成）               |
+| vue-draggable-plus      | ^0.6.1   | 拖拽排序                             |
 
 ### 开发工具链
 
-| 包 | 版本 | 用途 |
-|---|---|---|
-| typescript | ~6.0.2 | 语言 |
-| vite | ^8.1.0 | 构建 |
-| vue-tsc | ^3.3.5 | IDE / 类型检查 |
-| eslint | ^10.5.0 | 代码规范 + 架构边界 |
-| typescript-eslint | ^8.62.0 | TS 规则 |
-| prettier | ^3.8.4 | 格式化 |
-| vitest | ^4.1.9 | 单测 |
-| @vue/test-utils | ^2.4.11 | Vue 组件测试 |
-| openapi-typescript | ^7.13.0 | 后端类型生成 |
-| unplugin-auto-import | ^21.0.0 | API 自动导入 |
-| unplugin-vue-components | ^32.1.0 | 组件自动注册 |
-| simple-git-hooks | ^2.13.1 | Git 钩子 |
-| @commitlint/cli | ^21.1.0 | 提交规范 |
+| 包                      | 版本    | 用途                |
+| ----------------------- | ------- | ------------------- |
+| typescript              | ~6.0.2  | 语言                |
+| vite                    | ^8.1.0  | 构建                |
+| vue-tsc                 | ^3.3.5  | IDE / 类型检查      |
+| eslint                  | ^10.5.0 | 代码规范 + 架构边界 |
+| typescript-eslint       | ^8.62.0 | TS 规则             |
+| prettier                | ^3.8.4  | 格式化              |
+| vitest                  | ^4.1.9  | 单测                |
+| @vue/test-utils         | ^2.4.11 | Vue 组件测试        |
+| openapi-typescript      | ^7.13.0 | 后端类型生成        |
+| unplugin-auto-import    | ^21.0.0 | API 自动导入        |
+| unplugin-vue-components | ^32.1.0 | 组件自动注册        |
+| simple-git-hooks        | ^2.13.1 | Git 钩子            |
+| @commitlint/cli         | ^21.1.0 | 提交规范            |
 
 ---
 
@@ -240,11 +243,11 @@ src/
 
 仍存在的高/中危依赖（均为间接依赖，不进入生产构建产物）：
 
-| 等级 | 包 | 来源路径 | 说明 |
-|---|---|---|---|
-| high | `wangeditor` | `@form-create/designer > @form-create/component-wangeditor > wangeditor` | XSS，官方暂无补丁。仅安装未实际集成 |
-| high | `ini` | 多重间接依赖（form-create / test-utils → js-beautify → config-chain → ini） | 原型污染，仅影响开发期工具链 |
-| moderate | `js-yaml` | `openapi-typescript > @redocly/openapi-core > js-yaml` | DoS，仅影响 `gen:api-types` 脚本 |
+| 等级     | 包           | 来源路径                                                                    | 说明                                |
+| -------- | ------------ | --------------------------------------------------------------------------- | ----------------------------------- |
+| high     | `wangeditor` | `@form-create/designer > @form-create/component-wangeditor > wangeditor`    | XSS，官方暂无补丁。仅安装未实际集成 |
+| high     | `ini`        | 多重间接依赖（form-create / test-utils → js-beautify → config-chain → ini） | 原型污染，仅影响开发期工具链        |
+| moderate | `js-yaml`    | `openapi-typescript > @redocly/openapi-core > js-yaml`                      | DoS，仅影响 `gen:api-types` 脚本    |
 
 ---
 
@@ -254,7 +257,7 @@ src/
 pnpm install        # 安装依赖
 pnpm typecheck      # vue-tsc -b --noEmit    类型检查
 pnpm lint           # eslint .               代码规范 + 架构边界
-pnpm test           # vitest run             单元测试（33+ spec 文件）
+pnpm test           # vitest run             单元测试（60 spec files / 521 tests）
 pnpm build          # vue-tsc -b && vite build 生产构建
 pnpm preview        # 短时冒烟验证，用后终止
 ```
@@ -267,10 +270,10 @@ pnpm preview        # 短时冒烟验证，用后终止
 
 采用**契约先行 + 前后端并行**模式：前端不等后端就绪，拿 mock 把页面/功能全推起来。
 
-| 命令 | 模式 | 说明 |
-|---|---|---|
-| `pnpm dev` | real | 直连后端 `/api`，后端未就绪的 seam 显示「待上线」可读态 |
-| `pnpm dev:mock` | mock | 全 mock 模式，MSW 拦截请求，零后端依赖，用于肉眼验收 |
+| 命令            | 模式 | 说明                                                    |
+| --------------- | ---- | ------------------------------------------------------- |
+| `pnpm dev`      | real | 直连后端 `/api`，后端未就绪的 seam 显示「待上线」可读态 |
+| `pnpm dev:mock` | mock | 全 mock 模式，MSW 拦截请求，零后端依赖，用于肉眼验收    |
 
 Mock 由 `foundation/mock/` 提供，仅在 `VITE_USE_MOCK=true`（即 `dev:mock`）时激活，生产构建经过 tree-shake 不进入产物。
 
@@ -280,22 +283,20 @@ Mock 由 `foundation/mock/` 提供，仅在 `VITE_USE_MOCK=true`（即 `dev:mock
 
 ### 已真接
 
-| 端点 | 位置 | 说明 |
-|---|---|---|
-| `POST /auth/login` | `foundation/auth` | 返回裸 token，Bearer 7200s |
+| 端点                                | 位置              | 说明                             |
+| ----------------------------------- | ----------------- | -------------------------------- |
+| `POST /auth/login`                  | `foundation/auth` | 返回裸 token，Bearer 7200s       |
 | `GET /system/dict/data/list/{type}` | `foundation/dict` | 字典项，字段 `code` → FE `value` |
 
 ### seam（占位，标注 `// TODO(skeleton)`）
 
-| seam | 位置 | 现状 |
-|---|---|---|
-| `POST /auth/refresh` | `foundation/auth` | 端点不存在，直接 reject |
-| `POST /auth/logout` | `foundation/auth` | 端点不存在，仅清本地态 |
-| `GET /auth/info` (getInfo) | `foundation/session` | 端点不存在，返回占位会话（permissions/roles 空集） |
-| 菜单树端点 | `foundation/menu` | 端点不存在，喂本地占位载荷。但 `buildRoutesFromMenu()` + 路由守卫的动态路由机器是真跑通的——端点落地后只需替换 `loadMenu()` 函数体 |
-| BPMN adapter | `adapters/bpmn` | 接口壳，`throw new Error('not implemented')` |
-| Vue Flow adapter | `adapters/flow-graph` | 接口壳，`throw new Error('not implemented')` |
-| 多页签 | `layouts/BasicLayout` | 占位，未实现 |
+| seam                       | 位置                  | 现状                                                                           |
+| -------------------------- | --------------------- | ------------------------------------------------------------------------------ |
+| `GET /auth/info` (getInfo) | `foundation/session`  | 端点不存在，返回占位会话（permissions/roles 空集）                             |
+| 菜单树端点                 | `foundation/menu`     | 端点不存在，喂本地占位载荷。`buildRoutesFromMenu()` + 路由守卫动态路由已真跑通 |
+| 多页签                     | `layouts/BasicLayout` | 占位，未实现                                                                   |
+
+> 已消除的 seam：`/auth/refresh` + `/auth/logout`（双 token 管线已真接）、BPMN adapter（查看器防腐层已完成 + 两个消费方）、Vue Flow adapter（防腐层已完成，零消费方）。
 
 ### 工程约束
 
