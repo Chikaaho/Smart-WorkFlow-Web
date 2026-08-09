@@ -1580,3 +1580,355 @@ export const MOCK_STORAGE_FILES: Array<{
     updateBy: 1,
   },
 ]
+
+// ─── 流程实例 mock ──────────────────────────────────
+// processDefKey 引用 MOCK_PROCESS_DEFS 中的 PUBLISHED 条目（leave_approval / skeleton_approval / contract_approval）
+export const MOCK_INSTANCES: Array<{
+  id: number
+  processInstanceId: string
+  processDefKey: string
+  processName: string | null
+  businessKey: string
+  formKey: string
+  initiatorId: number
+  status: 'RUNNING' | 'APPROVED' | 'REJECTED'
+  createTime: string
+}> = [
+  {
+    id: 1,
+    processInstanceId: 'proc-001',
+    processDefKey: 'leave_approval',
+    processName: '请假审批流程',
+    businessKey: 'rec-leave-001',
+    formKey: 'leave-request',
+    initiatorId: 1,
+    status: 'RUNNING',
+    createTime: '2026-07-20T09:30:00',
+  },
+  {
+    id: 2,
+    processInstanceId: 'proc-002',
+    processDefKey: 'skeleton_approval',
+    processName: '单节点审批流程',
+    businessKey: 'rec-it-002',
+    formKey: 'it_application',
+    initiatorId: 2,
+    status: 'APPROVED',
+    createTime: '2026-07-15T14:00:00',
+  },
+  {
+    id: 3,
+    processInstanceId: 'proc-003',
+    processDefKey: 'contract_approval',
+    processName: '合同审批流程',
+    businessKey: 'rec-contract-003',
+    formKey: 'contract-approval',
+    initiatorId: 3,
+    status: 'REJECTED',
+    createTime: '2026-07-18T11:15:00',
+  },
+  {
+    id: 4,
+    processInstanceId: 'proc-004',
+    processDefKey: 'leave_approval',
+    processName: '请假审批流程',
+    businessKey: 'rec-leave-004',
+    formKey: 'leave-request',
+    initiatorId: 1,
+    status: 'RUNNING',
+    createTime: '2026-07-22T08:45:00',
+  },
+  {
+    id: 5,
+    processInstanceId: 'proc-005',
+    processDefKey: 'skeleton_approval',
+    processName: '单节点审批流程',
+    businessKey: 'rec-it-005',
+    formKey: 'it_application',
+    initiatorId: 4,
+    status: 'APPROVED',
+    createTime: '2026-07-10T16:30:00',
+  },
+  {
+    id: 6,
+    processInstanceId: 'proc-006',
+    processDefKey: 'leave_approval',
+    processName: '请假审批流程',
+    businessKey: 'rec-leave-006',
+    formKey: 'leave-request',
+    initiatorId: 2,
+    status: 'RUNNING',
+    createTime: '2026-07-25T13:20:00',
+  },
+]
+
+// ─── 流程实例详情 mock（按 processInstanceId 索引） ──
+// activeNodeIds 中的 ID 对应 BPMN XML mock 中的 activity ID
+export const MOCK_INSTANCE_DETAILS: Record<
+  string,
+  {
+    activeNodeIds: string[]
+    flowTrace: Array<{
+      activityId: string
+      activityName: string | null
+      activityType: string
+      startTime: string | null
+      endTime: string | null
+      assignee: string | null
+      taskId: string | null
+    }>
+  }
+> = {
+  'proc-001': {
+    // RUNNING — 活跃节点：部门审批
+    activeNodeIds: ['Activity_approve1'],
+    flowTrace: [
+      {
+        activityId: 'StartEvent_1',
+        activityName: '开始',
+        activityType: 'startEvent',
+        startTime: '2026-07-20T09:30:00',
+        endTime: '2026-07-20T09:30:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Flow_submit2approve',
+        activityName: null,
+        activityType: 'sequenceFlow',
+        startTime: '2026-07-20T09:30:00',
+        endTime: '2026-07-20T09:30:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Activity_submit',
+        activityName: '提交申请',
+        activityType: 'userTask',
+        startTime: '2026-07-20T09:30:00',
+        endTime: '2026-07-20T10:15:00',
+        assignee: '1',
+        taskId: 'task-submit-001',
+      },
+      {
+        activityId: 'Flow_submit2approve1',
+        activityName: null,
+        activityType: 'sequenceFlow',
+        startTime: '2026-07-20T10:15:00',
+        endTime: '2026-07-20T10:15:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Activity_approve1',
+        activityName: '部门经理审批',
+        activityType: 'userTask',
+        startTime: '2026-07-20T10:15:00',
+        endTime: null,
+        assignee: '2',
+        taskId: 'task-approve1-001',
+      },
+    ],
+  },
+  'proc-002': {
+    // APPROVED — 已完成（无活跃节点）
+    activeNodeIds: [],
+    flowTrace: [
+      {
+        activityId: 'StartEvent_1',
+        activityName: '开始',
+        activityType: 'startEvent',
+        startTime: '2026-07-15T14:00:00',
+        endTime: '2026-07-15T14:00:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Activity_submit',
+        activityName: '提交申请',
+        activityType: 'userTask',
+        startTime: '2026-07-15T14:00:00',
+        endTime: '2026-07-15T15:30:00',
+        assignee: '2',
+        taskId: 'task-submit-002',
+      },
+      {
+        activityId: 'Activity_approve1',
+        activityName: '部门经理审批',
+        activityType: 'userTask',
+        startTime: '2026-07-15T15:30:00',
+        endTime: '2026-07-16T09:00:00',
+        assignee: '3',
+        taskId: 'task-approve1-002',
+      },
+      {
+        activityId: 'EndEvent_1',
+        activityName: '结束',
+        activityType: 'endEvent',
+        startTime: '2026-07-16T09:00:00',
+        endTime: '2026-07-16T09:00:00',
+        assignee: null,
+        taskId: null,
+      },
+    ],
+  },
+  'proc-003': {
+    // REJECTED — 已驳回（无活跃节点）
+    activeNodeIds: [],
+    flowTrace: [
+      {
+        activityId: 'StartEvent_1',
+        activityName: '开始',
+        activityType: 'startEvent',
+        startTime: '2026-07-18T11:15:00',
+        endTime: '2026-07-18T11:15:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Activity_submit',
+        activityName: '提交申请',
+        activityType: 'userTask',
+        startTime: '2026-07-18T11:15:00',
+        endTime: '2026-07-18T14:00:00',
+        assignee: '3',
+        taskId: 'task-submit-003',
+      },
+      {
+        activityId: 'Activity_approve1',
+        activityName: '部门经理审批',
+        activityType: 'userTask',
+        startTime: '2026-07-18T14:00:00',
+        endTime: '2026-07-18T16:00:00',
+        assignee: '4',
+        taskId: 'task-approve1-003',
+      },
+      {
+        activityId: 'EndEvent_1',
+        activityName: '结束',
+        activityType: 'endEvent',
+        startTime: '2026-07-18T16:00:00',
+        endTime: '2026-07-18T16:00:00',
+        assignee: null,
+        taskId: null,
+      },
+    ],
+  },
+  'proc-004': {
+    // RUNNING — 刚启动（仅提交节点完成，部门审批活跃）
+    activeNodeIds: ['Activity_approve1'],
+    flowTrace: [
+      {
+        activityId: 'StartEvent_1',
+        activityName: '开始',
+        activityType: 'startEvent',
+        startTime: '2026-07-22T08:45:00',
+        endTime: '2026-07-22T08:45:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Activity_submit',
+        activityName: '提交申请',
+        activityType: 'userTask',
+        startTime: '2026-07-22T08:45:00',
+        endTime: '2026-07-22T09:00:00',
+        assignee: '1',
+        taskId: 'task-submit-004',
+      },
+      {
+        activityId: 'Activity_approve1',
+        activityName: '部门经理审批',
+        activityType: 'userTask',
+        startTime: '2026-07-22T09:00:00',
+        endTime: null,
+        assignee: '2',
+        taskId: 'task-approve1-004',
+      },
+    ],
+  },
+  'proc-005': {
+    // APPROVED
+    activeNodeIds: [],
+    flowTrace: [
+      {
+        activityId: 'StartEvent_1',
+        activityName: '开始',
+        activityType: 'startEvent',
+        startTime: '2026-07-10T16:30:00',
+        endTime: '2026-07-10T16:30:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Activity_submit',
+        activityName: '提交申请',
+        activityType: 'userTask',
+        startTime: '2026-07-10T16:30:00',
+        endTime: '2026-07-10T17:45:00',
+        assignee: '4',
+        taskId: 'task-submit-005',
+      },
+      {
+        activityId: 'Activity_approve1',
+        activityName: '部门经理审批',
+        activityType: 'userTask',
+        startTime: '2026-07-10T17:45:00',
+        endTime: '2026-07-11T10:00:00',
+        assignee: '2',
+        taskId: 'task-approve1-005',
+      },
+      {
+        activityId: 'EndEvent_1',
+        activityName: '结束',
+        activityType: 'endEvent',
+        startTime: '2026-07-11T10:00:00',
+        endTime: '2026-07-11T10:00:00',
+        assignee: null,
+        taskId: null,
+      },
+    ],
+  },
+  'proc-006': {
+    // RUNNING — 多活跃节点（并行网关后的两个审批）
+    activeNodeIds: ['Activity_approve1', 'Activity_approve2'],
+    flowTrace: [
+      {
+        activityId: 'StartEvent_1',
+        activityName: '开始',
+        activityType: 'startEvent',
+        startTime: '2026-07-25T13:20:00',
+        endTime: '2026-07-25T13:20:00',
+        assignee: null,
+        taskId: null,
+      },
+      {
+        activityId: 'Activity_submit',
+        activityName: '提交申请',
+        activityType: 'userTask',
+        startTime: '2026-07-25T13:20:00',
+        endTime: '2026-07-25T14:00:00',
+        assignee: '2',
+        taskId: 'task-submit-006',
+      },
+      {
+        activityId: 'Activity_approve1',
+        activityName: '部门经理审批',
+        activityType: 'userTask',
+        startTime: '2026-07-25T14:00:00',
+        endTime: null,
+        assignee: '3',
+        taskId: 'task-approve1-006',
+      },
+      {
+        activityId: 'Activity_approve2',
+        activityName: 'HR 审批',
+        activityType: 'userTask',
+        startTime: '2026-07-25T14:00:00',
+        endTime: null,
+        assignee: '4',
+        taskId: 'task-approve2-006',
+      },
+    ],
+  },
+}

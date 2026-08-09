@@ -1,6 +1,13 @@
 import { request } from '@/foundation/request'
 import type { PageQuery, PageResult } from '@/contracts/common'
-import type { TodoTask, TaskDetail, ProcessedTask, ProcessDef } from '@/contracts/bpm'
+import type {
+  TodoTask,
+  TaskDetail,
+  ProcessedTask,
+  ProcessDef,
+  ProcessInstance,
+  InstanceDetail,
+} from '@/contracts/bpm'
 
 // ─── 后端分页原始形状 ───
 interface BackendPageResult<T> {
@@ -94,5 +101,37 @@ export async function getProcessDefGraph(id: number): Promise<string> {
   return request<string>({
     method: 'GET',
     url: `/workflow/defs/${id}/bpmn-xml`,
+  })
+}
+
+// ═══════════════════════════════════════
+// 流程实例监控
+// ═══════════════════════════════════════
+
+/** 流程实例列表过滤参数 */
+export interface InstanceFilter {
+  status?: string // RUNNING / APPROVED / REJECTED
+  processDefKey?: string // 流程定义 key
+  initiatorId?: number // 发起人 ID
+}
+
+/** GET /workflow/instances?pageNum=&pageSize=&status=&processDefKey=&initiatorId= → PageResult<ProcessInstance> */
+export async function queryInstances(
+  page: PageQuery,
+  filter?: InstanceFilter,
+): Promise<PageResult<ProcessInstance>> {
+  const raw = await request<BackendPageResult<ProcessInstance>>({
+    method: 'GET',
+    url: '/workflow/instances',
+    params: { ...page, ...filter },
+  })
+  return adaptPage(raw)
+}
+
+/** GET /workflow/instances/{processInstanceId} → InstanceDetail */
+export async function getInstanceDetail(processInstanceId: string): Promise<InstanceDetail> {
+  return request<InstanceDetail>({
+    method: 'GET',
+    url: `/workflow/instances/${processInstanceId}`,
   })
 }

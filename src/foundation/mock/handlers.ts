@@ -46,6 +46,8 @@ import {
   MOCK_STORAGE_FILES,
   MOCK_JOB_INFOS,
   MOCK_JOB_LOGS,
+  MOCK_INSTANCES,
+  MOCK_INSTANCE_DETAILS,
 } from './seeds'
 
 // ─── 注册条目类型 ────────────────────────────────────────
@@ -733,7 +735,7 @@ export const mockRegistrations: MockRegistration[] = [
     },
   },
 
-  // ── 流程定义：获取 BPMN XML 流程图 ────────────────────────
+  // ── 流程定义：获取 BPMN XML 流程图（增强版：含 userTask 节点，支持高亮演示） ──
   // GET /api/workflow/defs/:id/bpmn-xml → R<String>
   // DRAFT 状态返回 code=2104 (PROCESS_NOT_PUBLISHED)
   {
@@ -745,7 +747,7 @@ export const mockRegistrations: MockRegistration[] = [
       if (!def || def.status === 'DRAFT') {
         return { code: 2104, message: '流程定义未发布，无法获取流程图', data: null }
       }
-      // 返回最简合法的 BPMN 2.0 XML（含 StartEvent + EndEvent）
+      // 返回含 3 个 userTask 的模拟审批流程 BPMN XML（activityId 与 mock seeds 中 MOCK_INSTANCE_DETAILS 的 activityId 对齐）
       const bpmnXml = `<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
@@ -754,20 +756,47 @@ export const mockRegistrations: MockRegistration[] = [
   targetNamespace="http://bpmn.io/schema/bpmn">
   <process id="${def.processKey}" name="${def.name}" isExecutable="true">
     <startEvent id="StartEvent_1" name="开始" />
-    <sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="EndEvent_1" />
+    <userTask id="Activity_submit" name="提交申请" />
+    <userTask id="Activity_approve1" name="部门经理审批" />
+    <userTask id="Activity_approve2" name="HR 审批" />
     <endEvent id="EndEvent_1" name="结束" />
+    <sequenceFlow id="Flow_start2submit" sourceRef="StartEvent_1" targetRef="Activity_submit" />
+    <sequenceFlow id="Flow_submit2approve1" sourceRef="Activity_submit" targetRef="Activity_approve1" />
+    <sequenceFlow id="Flow_approve1_2approve2" sourceRef="Activity_approve1" targetRef="Activity_approve2" />
+    <sequenceFlow id="Flow_approve2_2end" sourceRef="Activity_approve2" targetRef="EndEvent_1" />
   </process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="${def.processKey}">
       <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
-        <dc:Bounds x="180" y="80" width="36" height="36" />
+        <dc:Bounds x="180" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_submit_di" bpmnElement="Activity_submit">
+        <dc:Bounds x="260" y="95" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_approve1_di" bpmnElement="Activity_approve1">
+        <dc:Bounds x="420" y="95" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_approve2_di" bpmnElement="Activity_approve2">
+        <dc:Bounds x="580" y="95" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
-        <dc:Bounds x="400" y="80" width="36" height="36" />
+        <dc:Bounds x="740" y="120" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="flow1_di" bpmnElement="Flow_1">
-        <di:waypoint x="216" y="98" />
-        <di:waypoint x="400" y="98" />
+      <bpmndi:BPMNEdge id="flow1_di" bpmnElement="Flow_start2submit">
+        <di:waypoint x="216" y="138" />
+        <di:waypoint x="260" y="135" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow2_di" bpmnElement="Flow_submit2approve1">
+        <di:waypoint x="360" y="135" />
+        <di:waypoint x="420" y="135" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow3_di" bpmnElement="Flow_approve1_2approve2">
+        <di:waypoint x="520" y="135" />
+        <di:waypoint x="580" y="135" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow4_di" bpmnElement="Flow_approve2_2end">
+        <di:waypoint x="680" y="135" />
+        <di:waypoint x="740" y="138" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
@@ -1450,6 +1479,67 @@ export const mockRegistrations: MockRegistration[] = [
       const log = MOCK_JOB_LOGS.find((l) => l.id === id)
       if (!log) return { code: 404, message: '日志不存在', data: null }
       return { code: 0, message: 'ok', data: { ...log } }
+    },
+  },
+
+  // ═══════════════════════════════════════════════════
+  // ── 流程实例监控 ──────────────────────────────────
+  // ═══════════════════════════════════════════════════
+
+  // GET /api/workflow/instances — 分页实例列表
+  {
+    method: 'GET',
+    pattern: '/api/workflow/instances',
+    handler: (_params, query) => {
+      const pageNum = Number(query.pageNum ?? 1)
+      const pageSize = Number(query.pageSize ?? 10)
+
+      // 可选过滤
+      let list = [...MOCK_INSTANCES]
+      if (query.status) {
+        list = list.filter((i) => i.status === query.status)
+      }
+      if (query.processDefKey) {
+        list = list.filter((i) => i.processDefKey === query.processDefKey)
+      }
+      if (query.initiatorId) {
+        list = list.filter((i) => i.initiatorId === Number(query.initiatorId))
+      }
+
+      // 按创建时间倒序
+      list.sort((a, b) => b.createTime.localeCompare(a.createTime))
+
+      const total = list.length
+      const start = (pageNum - 1) * pageSize
+      const records = list.slice(start, start + pageSize)
+      return {
+        code: 0,
+        message: 'ok',
+        data: { records, total, pageNum, pageSize },
+      }
+    },
+  },
+
+  // GET /api/workflow/instances/:processInstanceId — 实例详情
+  {
+    method: 'GET',
+    pattern: '/api/workflow/instances/:processInstanceId',
+    handler: (params) => {
+      const processInstanceId = (params as Record<string, string>).processInstanceId
+      const instance = MOCK_INSTANCES.find((i) => i.processInstanceId === processInstanceId)
+      if (!instance) {
+        return { code: 404, message: '流程实例不存在', data: null }
+      }
+      const detail = MOCK_INSTANCE_DETAILS[processInstanceId]
+      return {
+        code: 0,
+        message: 'ok',
+        data: {
+          ...instance,
+          activeNodeIds: detail?.activeNodeIds ?? [],
+          flowTrace: detail?.flowTrace ?? [],
+        },
+      }
     },
   },
 ]

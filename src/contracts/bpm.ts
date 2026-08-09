@@ -56,3 +56,33 @@ export interface ProcessDef {
   createTime: string
   updateTime: string
 }
+
+// ─── 流程实例列表项 DTO（对齐后端 InstanceListItemDTO） ───
+export interface ProcessInstance {
+  id: number // BpmInstance 主键 ID
+  processInstanceId: string // Flowable 流程实例 ID
+  processDefKey: string // BPMN 流程定义 key
+  processName: string | null // 流程名称（经后端 processDefService 富化，流程定义被删除时为 null）
+  businessKey: string // 业务键（= 表单 recordId）
+  formKey: string // 表单业务标识
+  initiatorId: number // 发起人用户 ID（后端 Long → JSON number）
+  status: 'RUNNING' | 'APPROVED' | 'REJECTED' // 实例状态
+  createTime: string // 发起时间（LocalDateTime → ISO-8601 string）
+}
+
+// ─── 活动节点 DTO（对齐后端 BpmActivityDTO） ───
+export interface ActivityNode {
+  activityId: string // BPMN 元素 ID（如 "Activity_001"，与 bpmn-js bpmnElement 对齐）
+  activityName: string // 节点名称（如 "经理审批"）
+  activityType: string // 节点类型：userTask / startEvent / endEvent / exclusiveGateway 等
+  startTime: string | null // 开始时间（未开始节点可能为 null）
+  endTime: string | null // 结束时间（进行中节点为 null）
+  assignee: string | null // 处理人（仅 userTask 有值）
+  taskId: string | null // Flowable task ID（仅 userTask 有值）
+}
+
+// ─── 流程实例详情 DTO（对齐后端 InstanceDetailDTO） ───
+export interface InstanceDetail extends ProcessInstance {
+  activeNodeIds: string[] // 当前活跃节点 activity ID 列表（流程图绿色高亮）。实例已结束时为空
+  flowTrace: ActivityNode[] // 全部历史活动节点（按结束时间升序，进行中节点排末尾）
+}

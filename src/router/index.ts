@@ -66,6 +66,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/workflow/views/ProcessedList.vue'),
         meta: { title: '已办任务' },
       },
+      {
+        path: 'workflow/instances',
+        name: 'ProcessInstanceList',
+        component: () => import('@/modules/workflow/views/ProcessInstanceList.vue'),
+        meta: { title: '流程监控' },
+      },
     ],
   },
   {
