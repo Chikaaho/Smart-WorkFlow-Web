@@ -55,6 +55,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '表单管理' },
       },
       {
+        path: 'agent/graph-designer/:id',
+        name: 'agent-graph-designer',
+        component: () => import('@/modules/agent/views/GraphDesigner.vue'),
+        meta: { title: '图设计器' },
+      },
+      {
         path: 'workflow/task/:taskId',
         name: 'TaskDetail',
         component: () => import('@/modules/workflow/views/TaskDetail.vue'),
