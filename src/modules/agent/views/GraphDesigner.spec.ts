@@ -45,6 +45,10 @@ import {
   listToolOptions,
   saveDraftGraph,
 } from '@/modules/agent/api'
+import {
+  NODE_CONFIG_KEY_INPUT_VAR,
+  NODE_CONFIG_KEY_OUTPUT_VAR,
+} from '@/modules/agent/utils/graphAdapter'
 import type { ProcessGraph } from '@/contracts/agent'
 import GraphDesigner from './GraphDesigner.vue'
 
@@ -69,8 +73,10 @@ const stubs = {
   },
   'el-input': {
     template:
-      '<input class="el-input" :data-value="String(modelValue ?? \'\')" :data-placeholder="placeholder" />',
+      '<input class="el-input" :data-value="String(modelValue ?? \'\')" :data-placeholder="placeholder" @change="$emit(\'change\', $event.target.value)" />',
     props: ['modelValue', 'placeholder', 'size'],
+    // 声明 emits 防止 @change 作为 attrs fallthrough 到根元素（父级收到原生事件而非 $emit 参数）
+    emits: ['change'],
   },
   'el-empty': {
     template: '<div class="el-empty">{{ description }}</div>',
@@ -109,6 +115,35 @@ const mockGraph: ProcessGraph = {
   ],
 }
 
+/** 带变量名契约键的图（LLM inputVar/outputVar；TOOL 仅 inputVar） */
+const mockVarGraph: ProcessGraph = {
+  graphKey: 'agent_key456',
+  name: '多变量图',
+  version: 1,
+  canvas: {},
+  elements: [
+    { id: 'start-1', kind: 'node', type: 'START', style: { x: 0, y: 0 } },
+    {
+      id: 'llm-1',
+      kind: 'node',
+      type: 'LLM',
+      config: { agentModelConfigId: 7, inputVar: 'raw', outputVar: 'summary' },
+      style: { x: 200, y: 0 },
+    },
+    {
+      id: 'tool-1',
+      kind: 'node',
+      type: 'TOOL',
+      config: { toolName: 'http_echo', inputVar: 'summary' },
+      style: { x: 400, y: 0 },
+    },
+    { id: 'end-1', kind: 'node', type: 'END', style: { x: 600, y: 0 } },
+    { id: 'edge-1', kind: 'edge', source: 'start-1', target: 'llm-1' },
+    { id: 'edge-2', kind: 'edge', source: 'llm-1', target: 'tool-1' },
+    { id: 'edge-3', kind: 'edge', source: 'tool-1', target: 'end-1' },
+  ],
+}
+
 function mountDesigner() {
   return mount(GraphDesigner, {
     global: { stubs, directives: { loading: {} } },
@@ -122,7 +157,11 @@ function lastMountCall() {
 }
 
 async function mountLoaded() {
-  vi.mocked(getGraphDef).mockResolvedValueOnce(mockGraph)
+  return mountLoadedWith(mockGraph)
+}
+
+async function mountLoadedWith(graph: ProcessGraph) {
+  vi.mocked(getGraphDef).mockResolvedValueOnce(graph)
   vi.mocked(listModelOptions).mockResolvedValueOnce([
     { id: 1, name: 'OpenAI 主配置', modelName: 'gpt-4o', protocolType: 'openai', enabled: true },
     { id: 2, name: 'Ollama 本地', modelName: 'qwen2.5', protocolType: 'ollama', enabled: true },
@@ -298,5 +337,114 @@ describe('GraphDesigner.vue', () => {
     const instance = vi.mocked(mountFlowGraph).mock.results[0].value as FlowGraphInstance
     wrapper.unmount()
     expect(instance.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('变量名输入项：LLM/TOOL 属性面板各渲染两个输入框，回填 data 既有值，placeholder 提示默认变量', async () => {
+    const wrapper = await mountLoadedWith(mockVarGraph)
+    const [, data, events] = lastMountCall()
+
+    // LLM：inputVar/outputVar 回填，placeholder 含默认变量提示
+    events.onNodeClick?.(nodeById(data, 'llm-1'))
+    await nextTick()
+    const llmInputs = wrapper
+      .find('.property-panel')
+      .findAll('.el-input')
+      .map((i) => ({
+        value: i.attributes('data-value'),
+        placeholder: i.attributes('data-placeholder'),
+      }))
+    expect(llmInputs).toHaveLength(2)
+    expect(llmInputs[0].value).toBe('raw')
+    expect(llmInputs[1].value).toBe('summary')
+    expect(llmInputs[0].placeholder).toBe('留空 = 默认变量 input')
+    expect(llmInputs[1].placeholder).toBe('留空 = 默认变量 input')
+
+    // TOOL：仅 inputVar 回填，outputVar 留空
+    events.onNodeClick?.(nodeById(data, 'tool-1'))
+    await nextTick()
+    const toolInputs = wrapper
+      .find('.property-panel')
+      .findAll('.el-input')
+      .map((i) => i.attributes('data-value'))
+    expect(toolInputs).toEqual(['summary', ''])
+    wrapper.unmount()
+  })
+
+  it('LLM 变量名输入写回：经 handleVarNameChange 落 data.inputVar/outputVar（合并写不丢既有键）', async () => {
+    const wrapper = await mountLoaded()
+    const [, data, events] = lastMountCall()
+    events.onNodeClick?.(nodeById(data, 'llm-1'))
+    await nextTick()
+
+    const inputs = wrapper.find('.property-panel').findAll('.el-input')
+    ;(inputs[0].element as HTMLInputElement).value = 'raw'
+    await inputs[0].trigger('change')
+    await nextTick()
+    ;(inputs[1].element as HTMLInputElement).value = 'summary'
+    await inputs[1].trigger('change')
+    await nextTick()
+
+    expect(nodeById(data, 'llm-1').data).toEqual({
+      agentModelConfigId: 7,
+      inputVar: 'raw',
+      outputVar: 'summary',
+    })
+    wrapper.unmount()
+  })
+
+  it('变量名留空（含空白）：移除 data 键，不落 config（= 默认变量零迁移语义）', async () => {
+    const wrapper = await mountLoaded()
+    const [, data, events] = lastMountCall()
+    events.onNodeClick?.(nodeById(data, 'llm-1'))
+    await nextTick()
+
+    const inputs = wrapper.find('.property-panel').findAll('.el-input')
+    ;(inputs[0].element as HTMLInputElement).value = 'raw'
+    await inputs[0].trigger('change')
+    await nextTick()
+    expect(nodeById(data, 'llm-1').data?.[NODE_CONFIG_KEY_INPUT_VAR]).toBe('raw')
+
+    // 清空为空白串 → 键被移除
+    ;(inputs[0].element as HTMLInputElement).value = '   '
+    await inputs[0].trigger('change')
+    await nextTick()
+    expect(nodeById(data, 'llm-1').data?.[NODE_CONFIG_KEY_INPUT_VAR]).toBeUndefined()
+    expect(Object.keys(nodeById(data, 'llm-1').data ?? {})).not.toContain(NODE_CONFIG_KEY_INPUT_VAR)
+    expect(nodeById(data, 'llm-1').data?.[NODE_CONFIG_KEY_OUTPUT_VAR]).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('TOOL 变量名输入写回：落 data.inputVar/outputVar，保存草稿后 config 含精确契约键往返', async () => {
+    const wrapper = await mountLoaded()
+    const [, data, events] = lastMountCall()
+    events.onNodeClick?.(nodeById(data, 'tool-1'))
+    await nextTick()
+
+    const inputs = wrapper.find('.property-panel').findAll('.el-input')
+    ;(inputs[0].element as HTMLInputElement).value = 'final'
+    await inputs[0].trigger('change')
+    await nextTick()
+    ;(inputs[1].element as HTMLInputElement).value = 'final_out'
+    await inputs[1].trigger('change')
+    await nextTick()
+    expect(nodeById(data, 'tool-1').data).toEqual({
+      toolName: 'http_echo',
+      inputVar: 'final',
+      outputVar: 'final_out',
+    })
+
+    // 保存草稿：flowGraphDataToElements 整包往返，config 含 inputVar/outputVar 契约键
+    vi.mocked(saveDraftGraph).mockResolvedValueOnce(undefined)
+    const vm = wrapper.vm as unknown as { handleSaveDraft: () => Promise<void> }
+    await vm.handleSaveDraft()
+
+    const [, graph] = vi.mocked(saveDraftGraph).mock.calls[0] as [number, ProcessGraph]
+    const toolEl = graph.elements.find((el) => el.id === 'tool-1')
+    expect(toolEl?.config).toEqual({
+      toolName: 'http_echo',
+      inputVar: 'final',
+      outputVar: 'final_out',
+    })
+    wrapper.unmount()
   })
 })

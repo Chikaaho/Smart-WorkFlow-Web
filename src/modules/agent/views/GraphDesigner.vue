@@ -6,8 +6,10 @@
  * 生命周期：getGraph(id) → elementsToFlowGraphData → mountFlowGraph（flow-graph 防腐层）。
  * 编辑：onGraphChange 回调持有最新 FlowGraphData；节点点击打开属性面板——START/END
  * 无可编辑项；LLM 模型配置下拉写 data.agentModelConfigId；TOOL 工具下拉（internal/
- * external 合并、value=toolName 精确值）写 data.toolName；CONDITION 节点选中时列出
- * 其出边，逐边编辑关键词（写 edge.label，画布原生渲染边标签）。
+ * external 合并、value=toolName 精确值）写 data.toolName；LLM/TOOL 另有「输入变量名/
+ * 输出变量名」输入项写 data.inputVar/data.outputVar（后端 config 契约键，留空 = 默认
+ * 变量 input，不落键）；CONDITION 节点选中时列出其出边，逐边编辑关键词（写
+ * edge.label，画布原生渲染边标签）。
  * 保存草稿：flowGraphDataToElements → saveDraftGraph（全量覆盖，不跑校验）。
  * 发布：publish(id) 生成新版本快照，**不锁编辑**（Step7 语义：发布后仍可继续编辑
  * 并再次发布）。
@@ -37,7 +39,10 @@ import {
   saveDraftGraph,
 } from '@/modules/agent/api'
 import {
+  DEFAULT_VARIABLE_NAME,
+  NODE_CONFIG_KEY_INPUT_VAR,
   NODE_CONFIG_KEY_MODEL_ID,
+  NODE_CONFIG_KEY_OUTPUT_VAR,
   NODE_CONFIG_KEY_TOOL_NAME,
   NODE_TYPE_CONDITION,
   NODE_TYPE_END,
@@ -170,6 +175,24 @@ function updateNodeData(key: string, value: unknown) {
   const node = graphData.value.nodes.find((n) => n.id === selectedNodeId.value)
   if (!node) return
   node.data = { ...(node.data ?? {}), [key]: value }
+}
+
+/**
+ * 变量名输入项写回：trim 后非空经 updateNodeData 写入 data（与后端 resolveVarName
+ * 宽松语义对齐）；空白 = 未指定 = 默认变量，直接移除键（config 不携带空串，
+ * graph_json 零迁移干净落库）。
+ */
+function handleVarNameChange(key: string, value: unknown) {
+  const name = String(value ?? '').trim()
+  if (name === '') {
+    const node = graphData.value.nodes.find((n) => n.id === selectedNodeId.value)
+    if (!node) return
+    const next = { ...(node.data ?? {}) }
+    delete next[key]
+    node.data = next
+  } else {
+    updateNodeData(key, name)
+  }
 }
 
 /** 条件边关键词写 edge.label（画布原生渲染边标签，改后重挂载使画布可见） */
@@ -359,7 +382,7 @@ onBeforeUnmount(() => {
             />
           </template>
 
-          <!-- LLM：模型配置下拉 -->
+          <!-- LLM：模型配置下拉 + 输入/输出变量名 -->
           <template v-else-if="selectedNodeType === NODE_TYPE_LLM">
             <div class="field-row">
               <div class="field-label">模型配置</div>
@@ -379,9 +402,29 @@ onBeforeUnmount(() => {
                 />
               </el-select>
             </div>
+            <div class="field-row">
+              <div class="field-label">输入变量名</div>
+              <el-input
+                :model-value="
+                  (selectedNode.data?.[NODE_CONFIG_KEY_INPUT_VAR] as string | undefined) ?? ''
+                "
+                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
+                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_INPUT_VAR, v)"
+              />
+            </div>
+            <div class="field-row">
+              <div class="field-label">输出变量名</div>
+              <el-input
+                :model-value="
+                  (selectedNode.data?.[NODE_CONFIG_KEY_OUTPUT_VAR] as string | undefined) ?? ''
+                "
+                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
+                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_OUTPUT_VAR, v)"
+              />
+            </div>
           </template>
 
-          <!-- TOOL：工具下拉（internal/external 合并，value=toolName 精确值） -->
+          <!-- TOOL：工具下拉（internal/external 合并，value=toolName 精确值）+ 输入/输出变量名 -->
           <template v-else-if="selectedNodeType === NODE_TYPE_TOOL">
             <div class="field-row">
               <div class="field-label">工具</div>
@@ -400,6 +443,26 @@ onBeforeUnmount(() => {
                   :value="t.toolName"
                 />
               </el-select>
+            </div>
+            <div class="field-row">
+              <div class="field-label">输入变量名</div>
+              <el-input
+                :model-value="
+                  (selectedNode.data?.[NODE_CONFIG_KEY_INPUT_VAR] as string | undefined) ?? ''
+                "
+                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
+                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_INPUT_VAR, v)"
+              />
+            </div>
+            <div class="field-row">
+              <div class="field-label">输出变量名</div>
+              <el-input
+                :model-value="
+                  (selectedNode.data?.[NODE_CONFIG_KEY_OUTPUT_VAR] as string | undefined) ?? ''
+                "
+                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
+                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_OUTPUT_VAR, v)"
+              />
             </div>
           </template>
 

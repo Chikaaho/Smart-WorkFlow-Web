@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { elementsToFlowGraphData, flowGraphDataToElements, edgeKeyword } from './graphAdapter'
+import {
+  DEFAULT_VARIABLE_NAME,
+  NODE_CONFIG_KEY_INPUT_VAR,
+  NODE_CONFIG_KEY_OUTPUT_VAR,
+  elementsToFlowGraphData,
+  flowGraphDataToElements,
+  edgeKeyword,
+} from './graphAdapter'
 import type { GraphElement } from '@/contracts/agent'
 
 describe('graphAdapter 双向转换', () => {
@@ -124,5 +131,73 @@ describe('graphAdapter 双向转换', () => {
     expect(edgeKeyword({ id: 'e', kind: 'edge', config: { keyword: '  ' } })).toBeNull()
     expect(edgeKeyword({ id: 'e', kind: 'edge', config: { keyword: 123 } })).toBeNull()
     expect(edgeKeyword({ id: 'e', kind: 'edge', config: { keyword: '加急' } })).toBe('加急')
+  })
+
+  it('变量名 config 键常量与后端契约精确一致（inputVar/outputVar/默认变量 input）', () => {
+    expect(NODE_CONFIG_KEY_INPUT_VAR).toBe('inputVar')
+    expect(NODE_CONFIG_KEY_OUTPUT_VAR).toBe('outputVar')
+    expect(DEFAULT_VARIABLE_NAME).toBe('input')
+  })
+
+  it('LLM/TOOL 节点 config 含 inputVar/outputVar：elements → data → elements 往返精确保留', () => {
+    const elements: GraphElement[] = [
+      {
+        id: 'llm-1',
+        kind: 'node',
+        type: 'LLM',
+        config: { agentModelConfigId: 7, inputVar: 'raw', outputVar: 'summary' },
+        style: { x: 0, y: 0 },
+      },
+      {
+        id: 'tool-1',
+        kind: 'node',
+        type: 'TOOL',
+        config: { toolName: 'http_echo', inputVar: 'summary', outputVar: 'final' },
+        style: { x: 0, y: 0 },
+      },
+    ]
+
+    const data = elementsToFlowGraphData(elements)
+    // 变量键整包读入 data（与 agentModelConfigId/toolName 同通道，无特判）
+    expect(data.nodes[0].data).toEqual({
+      agentModelConfigId: 7,
+      inputVar: 'raw',
+      outputVar: 'summary',
+    })
+    expect(data.nodes[1].data).toEqual({
+      toolName: 'http_echo',
+      inputVar: 'summary',
+      outputVar: 'final',
+    })
+
+    const roundTrip = flowGraphDataToElements(data)
+    expect(roundTrip[0].config).toEqual({
+      agentModelConfigId: 7,
+      inputVar: 'raw',
+      outputVar: 'summary',
+    })
+    expect(roundTrip[1].config).toEqual({
+      toolName: 'http_echo',
+      inputVar: 'summary',
+      outputVar: 'final',
+    })
+  })
+
+  it('data 无变量键（留空=默认变量）：往返不产生 inputVar/outputVar 键', () => {
+    const data = elementsToFlowGraphData([
+      {
+        id: 'llm-1',
+        kind: 'node',
+        type: 'LLM',
+        config: { agentModelConfigId: 7 },
+        style: { x: 0, y: 0 },
+      },
+    ])
+    expect(data.nodes[0].data).toEqual({ agentModelConfigId: 7 })
+
+    const roundTrip = flowGraphDataToElements(data)
+    expect(roundTrip[0].config).toEqual({ agentModelConfigId: 7 })
+    expect(Object.keys(roundTrip[0].config ?? {})).not.toContain(NODE_CONFIG_KEY_INPUT_VAR)
+    expect(Object.keys(roundTrip[0].config ?? {})).not.toContain(NODE_CONFIG_KEY_OUTPUT_VAR)
   })
 })

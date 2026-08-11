@@ -5,7 +5,9 @@
 //   AgentGraphDef       ← AgentGraphDefDTO（列表/发布响应，不含 graph_json 大字段）
 //   GraphElement        ← dto/graph/GraphElement（config/style 为后端不透明 Map，
 //                        前端只写、后端原样透传；坐标存 style.x/style.y 是前端裁定，
-//                        不是后端契约，见 modules/agent/utils/graphAdapter.ts 顶部注释）
+//                        不是后端契约，见 modules/agent/utils/graphAdapter.ts 顶部注释；
+//                        LLM/TOOL 节点 config 键 agentModelConfigId/toolName/inputVar/
+//                        outputVar 见 graphAdapter.ts 常量，留空 = 默认变量 input）
 //   ProcessGraph        ← dto/graph/ProcessGraph
 //   AgentGraphExecute*  ← AgentGraphExecuteReq/RespDTO（success=false 表示运行时失败）
 //   AgentModelConfigDTO ← GET /agent/models 分页响应（LLM 节点下拉数据源）

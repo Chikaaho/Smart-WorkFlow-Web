@@ -13,6 +13,8 @@
  *   · 节点业务配置：FlowGraphNode.data ↔ GraphElement.config
  *       - LLM 节点  config.agentModelConfigId（模型配置 id）
  *       - TOOL 节点 config.toolName（工具白名单 name 精确值）
+ *       - LLM/TOOL 节点 config.inputVar / config.outputVar（输入/输出变量名，
+ *         留空/缺失 = 默认变量 input，与后端 resolveVarName 宽松语义一致）
  *   · 条件边关键词：GraphElement 的 config.keyword ↔ FlowGraphEdge.label
  *     （画布原生渲染边标签，直接可见；空/缺失 = 默认边，与后端 keywordOf 语义一致）
  *   · 节点/边 id 原样透传（设计器分配，往返不丢失）
@@ -26,7 +28,12 @@ import type { GraphElement } from '@/contracts/agent'
 /** 后端节点 config 键（与 AgentGraphInterpreter 常量对齐，非训练记忆） */
 export const NODE_CONFIG_KEY_MODEL_ID = 'agentModelConfigId'
 export const NODE_CONFIG_KEY_TOOL_NAME = 'toolName'
+export const NODE_CONFIG_KEY_INPUT_VAR = 'inputVar'
+export const NODE_CONFIG_KEY_OUTPUT_VAR = 'outputVar'
 export const EDGE_CONFIG_KEY_KEYWORD = 'keyword'
+
+/** 默认变量名（与后端 AgentGraphInterpreter.DEFAULT_VARIABLE_NAME 对齐） */
+export const DEFAULT_VARIABLE_NAME = 'input'
 
 /** 后端节点类型（与 AgentGraphInterpreter 常量对齐） */
 export const NODE_TYPE_START = 'START'
