@@ -266,6 +266,8 @@ pnpm audit --registry https://registry.npmjs.org/  # 依赖安全审计
 
 > **`pnpm dev`/`pnpm dev:mock` 不允许做阻塞式校验**——它没有确定退出码。
 > 校验门唯一合法判据是 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 四连全绿。
+>
+> **编译命令必须限制最大内存（硬约束 🔒）**：所有 `pnpm`/`npm` 命令一律带 `NODE_OPTIONS="--max-old-space-size=1024"`，上限 1G，禁止无限制内存直接编译/构建。
 
 ---
 
