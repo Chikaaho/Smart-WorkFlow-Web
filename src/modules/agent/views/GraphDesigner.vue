@@ -9,7 +9,9 @@
  * external 合并、value=toolName 精确值）写 data.toolName；LLM/TOOL 另有「输入变量名/
  * 输出变量名」输入项写 data.inputVar/data.outputVar（后端 config 契约键，留空 = 默认
  * 变量 input，不落键）；CONDITION 节点选中时列出其出边，逐边编辑关键词（写
- * edge.label，画布原生渲染边标签）。
+ * edge.label，画布原生渲染边标签）；LOOP 节点「最大迭代次数」数字输入写
+ * data.maxIterations（Integer ≥1，空值/非数字删键，<1 提示不写入，缺省后端默认 10）；
+ * FORK/JOIN 无 config 编辑项，仅静态说明文本（分支语义落在出/入边）。
  * 保存草稿：flowGraphDataToElements → saveDraftGraph（全量覆盖，不跑校验）。
  * 发布：publish(id) 生成新版本快照，**不锁编辑**（Step7 语义：发布后仍可继续编辑
  * 并再次发布）。
@@ -41,13 +43,17 @@ import {
 import {
   DEFAULT_VARIABLE_NAME,
   NODE_CONFIG_KEY_INPUT_VAR,
+  NODE_CONFIG_KEY_MAX_ITERATIONS,
   NODE_CONFIG_KEY_MODEL_ID,
   NODE_CONFIG_KEY_OUTPUT_VAR,
   NODE_CONFIG_KEY_TOOL_NAME,
   NODE_TYPE_CONDITION,
   NODE_TYPE_END,
+  NODE_TYPE_FORK,
+  NODE_TYPE_JOIN,
   NODE_TYPE_LABELS,
   NODE_TYPE_LLM,
+  NODE_TYPE_LOOP,
   NODE_TYPE_START,
   NODE_TYPE_TOOL,
   elementsToFlowGraphData,
@@ -109,6 +115,9 @@ const NODE_TYPES = [
   NODE_TYPE_LLM,
   NODE_TYPE_TOOL,
   NODE_TYPE_CONDITION,
+  NODE_TYPE_LOOP,
+  NODE_TYPE_FORK,
+  NODE_TYPE_JOIN,
 ]
 
 // ─── 画布事件 ───
@@ -193,6 +202,36 @@ function handleVarNameChange(key: string, value: unknown) {
   } else {
     updateNodeData(key, name)
   }
+}
+
+/**
+ * LOOP maxIterations 写回（对齐后端契约：Integer ≥1，后端缺省默认 10）：
+ * 空值/非数字删键（config 不携带非法值，零迁移落库）；<1 或非整数提示且不写入。
+ */
+function handleMaxIterationsChange(value: unknown) {
+  const text = String(value ?? '').trim()
+  const node = graphData.value.nodes.find((n) => n.id === selectedNodeId.value)
+  if (!node) return
+  const removeKey = () => {
+    const next = { ...(node.data ?? {}) }
+    delete next[NODE_CONFIG_KEY_MAX_ITERATIONS]
+    node.data = next
+  }
+  if (text === '') {
+    removeKey()
+    return
+  }
+  const parsed = Number(text)
+  if (Number.isNaN(parsed)) {
+    removeKey()
+    return
+  }
+  if (parsed < 1 || !Number.isInteger(parsed)) {
+    ElMessage.warning('LOOP 节点 maxIterations 必须 ≥ 1')
+    removeKey()
+    return
+  }
+  updateNodeData(NODE_CONFIG_KEY_MAX_ITERATIONS, parsed)
 }
 
 /** 条件边关键词写 edge.label（画布原生渲染边标签，改后重挂载使画布可见） */
@@ -464,6 +503,46 @@ onBeforeUnmount(() => {
                 @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_OUTPUT_VAR, v)"
               />
             </div>
+          </template>
+
+          <!-- LOOP：最大迭代次数数字输入（Integer ≥1，空值/非法删键，缺省后端默认 10） -->
+          <template v-else-if="selectedNodeType === NODE_TYPE_LOOP">
+            <div class="field-row">
+              <div class="field-label">最大迭代次数</div>
+              <el-input
+                :model-value="String(selectedNode.data?.[NODE_CONFIG_KEY_MAX_ITERATIONS] ?? '')"
+                type="number"
+                min="1"
+                placeholder="留空 = 后端默认 10（≥1）"
+                @change="(v) => handleMaxIterationsChange(v)"
+              />
+            </div>
+            <el-alert
+              title="循环头节点：出边唯一进入循环体；迭代次数超限执行报错"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+          </template>
+
+          <!-- FORK：扇出，无 config 编辑项，仅静态说明（分支语义落在出边） -->
+          <template v-else-if="selectedNodeType === NODE_TYPE_FORK">
+            <el-alert
+              title="并行分支节点：出边数 = 并行分支数（≥2），各分支并发执行后可在 JOIN 汇合"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+          </template>
+
+          <!-- JOIN：汇合，无 config 编辑项，仅静态说明（入边 = 汇合分支） -->
+          <template v-else-if="selectedNodeType === NODE_TYPE_JOIN">
+            <el-alert
+              title="汇合节点：入边数 = 汇合分支数（≥2），等待全部分支到达后合并单点继续"
+              type="info"
+              :closable="false"
+              show-icon
+            />
           </template>
 
           <!-- CONDITION：出边关键词编辑（写 edge.label，留空=默认边） -->

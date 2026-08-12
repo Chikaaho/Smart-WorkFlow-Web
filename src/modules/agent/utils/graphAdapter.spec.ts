@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_VARIABLE_NAME,
   NODE_CONFIG_KEY_INPUT_VAR,
+  NODE_CONFIG_KEY_MAX_ITERATIONS,
   NODE_CONFIG_KEY_OUTPUT_VAR,
+  NODE_TYPE_FORK,
+  NODE_TYPE_JOIN,
+  NODE_TYPE_LABELS,
+  NODE_TYPE_LOOP,
   elementsToFlowGraphData,
   flowGraphDataToElements,
   edgeKeyword,
@@ -122,6 +127,46 @@ describe('graphAdapter 双向转换', () => {
     const roundTrip = flowGraphDataToElements(data)
     expect(roundTrip[0].type).toBe('LOOP')
     expect(roundTrip[0].style).toEqual({ x: 1, y: 2 })
+  })
+
+  it('LOOP/FORK/JOIN 类型常量、maxIterations 契约键与 LABELS 条目与后端契约一致', () => {
+    expect(NODE_TYPE_LOOP).toBe('LOOP')
+    expect(NODE_TYPE_FORK).toBe('FORK')
+    expect(NODE_TYPE_JOIN).toBe('JOIN')
+    expect(NODE_CONFIG_KEY_MAX_ITERATIONS).toBe('maxIterations')
+    expect(NODE_TYPE_LABELS[NODE_TYPE_LOOP]).toBe('循环')
+    expect(NODE_TYPE_LABELS[NODE_TYPE_FORK]).toBe('并行分支')
+    expect(NODE_TYPE_LABELS[NODE_TYPE_JOIN]).toBe('汇合')
+  })
+
+  it('LOOP/FORK/JOIN 节点（带/不带 config）elements → data → elements 往返透传不崩溃', () => {
+    const elements: GraphElement[] = [
+      {
+        id: 'loop-1',
+        kind: 'node',
+        type: 'LOOP',
+        config: { maxIterations: 3 },
+        style: { x: 1, y: 2 },
+      },
+      { id: 'fork-1', kind: 'node', type: 'FORK', style: { x: 3, y: 4 } },
+      { id: 'join-1', kind: 'node', type: 'JOIN', style: { x: 5, y: 6 } },
+    ]
+    const data = elementsToFlowGraphData(elements)
+    expect(data.nodes.map((n) => n.type)).toEqual(['LOOP', 'FORK', 'JOIN'])
+    // config 不透明整包透传：LOOP 带 maxIterations，FORK/JOIN 无 config
+    expect(data.nodes[0].data).toEqual({ maxIterations: 3 })
+    expect(data.nodes[1].data).toBeUndefined()
+    expect(data.nodes[2].data).toBeUndefined()
+
+    const roundTrip = flowGraphDataToElements(data)
+    expect(roundTrip.map((el) => [el.id, el.type])).toEqual([
+      ['loop-1', 'LOOP'],
+      ['fork-1', 'FORK'],
+      ['join-1', 'JOIN'],
+    ])
+    expect(roundTrip[0].config).toEqual({ maxIterations: 3 })
+    expect(roundTrip[1].config).toBeUndefined()
+    expect(roundTrip[2].style).toEqual({ x: 5, y: 6 })
   })
 
   it('keywordOf 与后端语义一致：缺失/空串/非字符串均视为默认边', () => {

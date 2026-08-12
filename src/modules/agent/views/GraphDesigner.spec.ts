@@ -45,8 +45,10 @@ import {
   listToolOptions,
   saveDraftGraph,
 } from '@/modules/agent/api'
+import { ElMessage } from 'element-plus'
 import {
   NODE_CONFIG_KEY_INPUT_VAR,
+  NODE_CONFIG_KEY_MAX_ITERATIONS,
   NODE_CONFIG_KEY_OUTPUT_VAR,
 } from '@/modules/agent/utils/graphAdapter'
 import type { ProcessGraph } from '@/contracts/agent'
@@ -112,6 +114,31 @@ const mockGraph: ProcessGraph = {
     { id: 'edge-3', kind: 'edge', source: 'tool-1', target: 'cond-1' },
     { id: 'edge-4', kind: 'edge', source: 'cond-1', target: 'end-1', config: { keyword: '加急' } },
     { id: 'edge-5', kind: 'edge', source: 'cond-1', target: 'end-1' },
+  ],
+}
+
+/** 含 LOOP/FORK/JOIN 新类型节点的图（LOOP 带 maxIterations 契约键） */
+const mockLoopGraph: ProcessGraph = {
+  graphKey: 'agent_key789',
+  name: '循环并行图',
+  version: 1,
+  canvas: {},
+  elements: [
+    { id: 'start-1', kind: 'node', type: 'START', style: { x: 0, y: 0 } },
+    {
+      id: 'loop-1',
+      kind: 'node',
+      type: 'LOOP',
+      config: { maxIterations: 3 },
+      style: { x: 200, y: 0 },
+    },
+    { id: 'fork-1', kind: 'node', type: 'FORK', style: { x: 400, y: 0 } },
+    { id: 'join-1', kind: 'node', type: 'JOIN', style: { x: 600, y: 0 } },
+    { id: 'end-1', kind: 'node', type: 'END', style: { x: 800, y: 0 } },
+    { id: 'edge-1', kind: 'edge', source: 'start-1', target: 'loop-1' },
+    { id: 'edge-2', kind: 'edge', source: 'loop-1', target: 'fork-1' },
+    { id: 'edge-3', kind: 'edge', source: 'fork-1', target: 'join-1' },
+    { id: 'edge-4', kind: 'edge', source: 'join-1', target: 'end-1' },
   ],
 }
 
@@ -445,6 +472,85 @@ describe('GraphDesigner.vue', () => {
       inputVar: 'final',
       outputVar: 'final_out',
     })
+    wrapper.unmount()
+  })
+
+  it('色板渲染 LOOP/FORK/JOIN 新类型按钮，点击后画布新增对应类型节点', async () => {
+    const wrapper = await mountLoaded()
+    const paletteTexts = wrapper.findAll('.palette-item').map((b) => b.text())
+    expect(paletteTexts).toEqual([
+      '开始',
+      '结束',
+      'LLM 调用',
+      '工具调用',
+      '条件分支',
+      '循环',
+      '并行分支',
+      '汇合',
+    ])
+
+    const loopBtn = wrapper.findAll('.palette-item').find((b) => b.text() === '循环')!
+    await loopBtn.trigger('click')
+    const [, data] = lastMountCall()
+    expect(data.nodes[data.nodes.length - 1].type).toBe('LOOP')
+    wrapper.unmount()
+  })
+
+  it('LOOP 节点选中：属性面板显示 maxIterations 输入框，回填既有值且可编辑写回', async () => {
+    const wrapper = await mountLoadedWith(mockLoopGraph)
+    const [, data, events] = lastMountCall()
+    events.onNodeClick?.(nodeById(data, 'loop-1'))
+    await nextTick()
+
+    const input = wrapper.find('.property-panel').find('.el-input')
+    expect(input.attributes('data-value')).toBe('3')
+    ;(input.element as HTMLInputElement).value = '5'
+    await input.trigger('change')
+    await nextTick()
+    expect(nodeById(data, 'loop-1').data?.[NODE_CONFIG_KEY_MAX_ITERATIONS]).toBe(5)
+    wrapper.unmount()
+  })
+
+  it('LOOP 节点：maxIterations 空值删键；<1 提示且不写入', async () => {
+    const wrapper = await mountLoadedWith(mockLoopGraph)
+    const [, data, events] = lastMountCall()
+    events.onNodeClick?.(nodeById(data, 'loop-1'))
+    await nextTick()
+
+    const input = wrapper.find('.property-panel').find('.el-input')
+    // 空值 → 删键（config 不携带，缺省后端默认 10）
+    ;(input.element as HTMLInputElement).value = ''
+    await input.trigger('change')
+    await nextTick()
+    expect(nodeById(data, 'loop-1').data?.[NODE_CONFIG_KEY_MAX_ITERATIONS]).toBeUndefined()
+    expect(Object.keys(nodeById(data, 'loop-1').data ?? {})).not.toContain(
+      NODE_CONFIG_KEY_MAX_ITERATIONS,
+    )
+
+    // <1 → 警告且不写入（与后端校验口径一致）
+    ;(input.element as HTMLInputElement).value = '0'
+    await input.trigger('change')
+    await nextTick()
+    expect(ElMessage.warning).toHaveBeenCalledWith('LOOP 节点 maxIterations 必须 ≥ 1')
+    expect(nodeById(data, 'loop-1').data?.[NODE_CONFIG_KEY_MAX_ITERATIONS]).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('FORK/JOIN 节点选中：属性面板显示静态说明文本，无 config 编辑项', async () => {
+    const wrapper = await mountLoadedWith(mockLoopGraph)
+    const [, data, events] = lastMountCall()
+
+    events.onNodeClick?.(nodeById(data, 'fork-1'))
+    await nextTick()
+    const forkPanel = wrapper.find('.property-panel')
+    expect(forkPanel.text()).toContain('出边数 = 并行分支数（≥2）')
+    expect(forkPanel.findAll('.el-input')).toHaveLength(0)
+
+    events.onNodeClick?.(nodeById(data, 'join-1'))
+    await nextTick()
+    const joinPanel = wrapper.find('.property-panel')
+    expect(joinPanel.text()).toContain('入边数 = 汇合分支数（≥2）')
+    expect(joinPanel.findAll('.el-input')).toHaveLength(0)
     wrapper.unmount()
   })
 })

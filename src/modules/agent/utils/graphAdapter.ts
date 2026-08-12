@@ -15,6 +15,8 @@
  *       - TOOL 节点 config.toolName（工具白名单 name 精确值）
  *       - LLM/TOOL 节点 config.inputVar / config.outputVar（输入/输出变量名，
  *         留空/缺失 = 默认变量 input，与后端 resolveVarName 宽松语义一致）
+ *       - LOOP 节点  config.maxIterations（循环最大迭代次数，Integer ≥1，缺省后端
+ *         默认 10；前端仅表达/编辑，不解释循环语义）
  *   · 条件边关键词：GraphElement 的 config.keyword ↔ FlowGraphEdge.label
  *     （画布原生渲染边标签，直接可见；空/缺失 = 默认边，与后端 keywordOf 语义一致）
  *   · 节点/边 id 原样透传（设计器分配，往返不丢失）
@@ -30,6 +32,7 @@ export const NODE_CONFIG_KEY_MODEL_ID = 'agentModelConfigId'
 export const NODE_CONFIG_KEY_TOOL_NAME = 'toolName'
 export const NODE_CONFIG_KEY_INPUT_VAR = 'inputVar'
 export const NODE_CONFIG_KEY_OUTPUT_VAR = 'outputVar'
+export const NODE_CONFIG_KEY_MAX_ITERATIONS = 'maxIterations'
 export const EDGE_CONFIG_KEY_KEYWORD = 'keyword'
 
 /** 默认变量名（与后端 AgentGraphInterpreter.DEFAULT_VARIABLE_NAME 对齐） */
@@ -41,6 +44,9 @@ export const NODE_TYPE_END = 'END'
 export const NODE_TYPE_LLM = 'LLM'
 export const NODE_TYPE_TOOL = 'TOOL'
 export const NODE_TYPE_CONDITION = 'CONDITION'
+export const NODE_TYPE_LOOP = 'LOOP'
+export const NODE_TYPE_FORK = 'FORK'
+export const NODE_TYPE_JOIN = 'JOIN'
 
 /** 节点类型 → 画布默认显示名（仅展示用途，不落库，往返无字段） */
 export const NODE_TYPE_LABELS: Record<string, string> = {
@@ -49,6 +55,9 @@ export const NODE_TYPE_LABELS: Record<string, string> = {
   [NODE_TYPE_LLM]: 'LLM 调用',
   [NODE_TYPE_TOOL]: '工具调用',
   [NODE_TYPE_CONDITION]: '条件分支',
+  [NODE_TYPE_LOOP]: '循环',
+  [NODE_TYPE_FORK]: '并行分支',
+  [NODE_TYPE_JOIN]: '汇合',
 }
 
 function isNode(el: GraphElement): boolean {
