@@ -7,11 +7,13 @@
  * 新建/编辑走 el-dialog 内嵌 StandardFormTemplate + 手写控件（高代码轨）。
  * 角色编码编辑时 disabled（不允许修改编码）。
  */
-import { ref, reactive, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
+import { ElMessage, ElMessageBox, type TreeInstance } from 'element-plus'
 import { ApiError } from '@/foundation/request'
 import { pageRoles, getRole, createRole, updateRole, deleteRole } from '@/modules/system/api/role'
+import { listDeptTree } from '@/modules/system/api/dept'
 import type { SysRole, RoleFilter } from '@/modules/system/types/role'
+import type { SysDept } from '@/modules/system/types/dept'
 import type { PageQuery } from '@/contracts/common'
 import {
   StandardListTemplate,
@@ -90,6 +92,53 @@ function handlePageSizeChange(s: number) {
 
 const isEmpty = computed(() => !loading.value && !errorMsg.value && list.value.length === 0)
 
+// ─── 数据权限（DataScope） ───
+// 数值与后端 DataScope 枚举 ordinal 对齐，当前按 0-4 顺序
+// （ALL=0 / DEPT=1 / DEPT_AND_CHILD=2 / SELF=3 / CUSTOM=4），数值映射待联调确认。
+
+const DATA_SCOPE_OPTIONS = [
+  { label: '全部', value: 0 },
+  { label: '本部门', value: 1 },
+  { label: '本部门及以下', value: 2 },
+  { label: '仅本人', value: 3 },
+  { label: '自定义部门', value: 4 },
+] as const
+const DATA_SCOPE_CUSTOM = 4
+const DATA_SCOPE_DEFAULT = 1
+
+const deptTree = ref<SysDept[]>([])
+const deptTreeError = ref('')
+const deptTreeRef = ref<TreeInstance | null>(null)
+
+/** flat 数组 → 嵌套树转换（与 DeptList 同构） */
+function buildDeptTree(list: SysDept[], parentId = '0'): SysDept[] {
+  return list
+    .filter((item) => item.parentId === parentId)
+    .map((item) => ({
+      ...item,
+      children: buildDeptTree(list, item.id!),
+    }))
+}
+
+async function loadDeptTree() {
+  deptTreeError.value = ''
+  try {
+    deptTree.value = buildDeptTree(await listDeptTree())
+  } catch {
+    deptTreeError.value = '加载部门树失败'
+  }
+}
+
+/** 用表单中的 deptIds 回填树勾选（树为全量加载，无需展开即可 setCheckedKeys） */
+function applyDeptCheckedKeys() {
+  if (form.dataScope !== DATA_SCOPE_CUSTOM) return
+  deptTreeRef.value?.setCheckedKeys(form.deptIds ?? [])
+}
+
+function handleDeptTreeCheck() {
+  form.deptIds = (deptTreeRef.value?.getCheckedKeys() ?? []) as string[]
+}
+
 // ─── 弹窗状态 ───
 
 const dialogVisible = ref(false)
@@ -103,21 +152,36 @@ const form = reactive<SysRole>({
   code: '',
   sort: 0,
   status: 1,
+  dataScope: DATA_SCOPE_DEFAULT,
+  deptIds: [],
   description: '',
 })
+
+// 用户切换为“自定义部门”时重建/恢复树勾选（弹窗 destroy-on-close 会销毁树实例）。
+// 必须声明在 form 之后，watch 的 getter 在 setup 阶段即被求值。
+watch(
+  () => form.dataScope,
+  async () => {
+    await nextTick()
+    applyDeptCheckedKeys()
+  },
+)
 
 function resetForm() {
   form.name = ''
   form.code = ''
   form.sort = 0
   form.status = 1
+  form.dataScope = DATA_SCOPE_DEFAULT
+  form.deptIds = []
   form.description = ''
   editingId.value = null
   formError.value = ''
 }
 
-function openCreate() {
+async function openCreate() {
   resetForm()
+  await loadDeptTree()
   dialogVisible.value = true
 }
 
@@ -130,12 +194,17 @@ async function openEdit(row: SysRole) {
     form.code = detail.code
     form.sort = detail.sort ?? 0
     form.status = detail.status
+    form.dataScope = detail.dataScope ?? DATA_SCOPE_DEFAULT
+    form.deptIds = detail.deptIds ?? []
     form.description = detail.description ?? ''
   } catch {
     formError.value = '加载角色详情失败'
     return
   }
   dialogVisible.value = true
+  await loadDeptTree()
+  await nextTick()
+  applyDeptCheckedKeys()
 }
 
 function closeDialog() {
@@ -154,12 +223,14 @@ async function handleSubmit() {
 
   submitting.value = true
   formError.value = ''
+  // 非 CUSTOM 时 deptIds 传空数组
+  const data = { ...form, deptIds: form.dataScope === DATA_SCOPE_CUSTOM ? form.deptIds : [] }
   try {
     if (editingId.value) {
-      await updateRole({ ...form, id: editingId.value })
+      await updateRole({ ...data, id: editingId.value })
       ElMessage.success('更新成功')
     } else {
-      await createRole({ ...form })
+      await createRole(data)
       ElMessage.success('创建成功')
     }
     closeDialog()
@@ -353,6 +424,41 @@ onMounted(loadList)
         </FormGrid>
       </FormSection>
 
+      <FormSection title="数据权限">
+        <FormGrid :columns="1">
+          <div class="form-field">
+            <label class="form-field__label">数据范围</label>
+            <el-select v-model="form.dataScope" style="width: 100%">
+              <el-option
+                v-for="opt in DATA_SCOPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </div>
+          <div v-if="form.dataScope === DATA_SCOPE_CUSTOM" class="form-field">
+            <label class="form-field__label">自定义部门</label>
+            <div v-if="deptTreeError" class="dept-tree-box dept-tree-box--tip">
+              {{ deptTreeError }}
+            </div>
+            <div v-else-if="deptTree.length" class="dept-tree-box">
+              <el-tree
+                ref="deptTreeRef"
+                :data="deptTree"
+                node-key="id"
+                show-checkbox
+                check-strictly
+                default-expand-all
+                :props="{ label: 'name', children: 'children' }"
+                @check="handleDeptTreeCheck"
+              />
+            </div>
+            <div v-else class="dept-tree-box dept-tree-box--tip">暂无部门数据</div>
+          </div>
+        </FormGrid>
+      </FormSection>
+
       <template #actions>
         <el-button @click="closeDialog">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
@@ -377,5 +483,18 @@ onMounted(loadList)
 .form-field--required .form-field__label::before {
   content: '* ';
   color: var(--sw-danger);
+}
+
+.dept-tree-box {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--sw-border-base);
+  border-radius: var(--sw-radius-card);
+  padding: var(--sw-space-8);
+}
+
+.dept-tree-box--tip {
+  font-size: var(--sw-font-body);
+  color: var(--sw-text-tertiary);
 }
 </style>
