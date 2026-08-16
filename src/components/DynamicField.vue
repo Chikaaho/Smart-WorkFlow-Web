@@ -1,25 +1,21 @@
 <script setup lang="ts">
 /**
  * DynamicField — 低代码字段渲染原子。
- * 按 field.type 判别式渲染对应 Element Plus 控件，不含布局壳。
+ * 按 field.type 查 DYNAMIC_FIELD_REGISTRY（dynamic-field-registry.ts）渲染对应控件，
+ * 无 per-type if/switch 链；8 类控件各自为独立组件（dynamic-field-controls/），
+ * TABLE 子表单元格查同一注册表（REFERENCE 降级占位 / TABLE 不递归）。
  * 数据外部进（modelValue），更新通过 emit 出——零 onMounted 拉数据。
- *
- * 8 类渲染链提炼自 FormRender.vue（demo 保留不修改）：
- *   TEXT→el-input / RICH_TEXT→el-input textarea / NUMBER→el-input-number
- *   DATE→el-date-picker(valueFormat YYYY-MM-DD) / BOOL→el-switch
- *   DICT→DictSelect(注入 dictType) / REFERENCE→ReferenceSelector(只读输入框+弹窗选择器) / TABLE→原生 table
  */
-import { computed, ref } from 'vue'
-import type { FormSchemaField, IdValueProperty } from '@/contracts/form-schema'
-import DictSelect from '@/foundation/dict/DictSelect.vue'
-import ReferenceSelector from '@/modules/form/components/ReferenceSelector.vue'
+import { computed } from 'vue'
+import type { FormSchemaField } from '@/contracts/form-schema'
+import { getDynamicFieldDescriptor } from './dynamic-field-registry'
 
 const props = withDefaults(
   defineProps<{
     field: FormSchemaField
     modelValue: unknown
     /**
-     * 只读模式：
+     * 只读模式（语义随控件类型，见各控件实现）：
      * - TEXT / RICH_TEXT → readonly
      * - NUMBER / DATE / BOOL / DICT → disabled
      * - REFERENCE → 只读输入框，禁用「选择」按钮
@@ -44,64 +40,14 @@ const emit = defineEmits<{
   'update:modelValue': [value: unknown]
 }>()
 
-/* ── 类型适配：将 unknown modelValue 转为各控件所需的类型 ── */
-const strVal = computed(() => String(props.modelValue ?? ''))
-const numVal = computed(() => Number(props.modelValue ?? 0))
-const boolVal = computed(() => Boolean(props.modelValue))
-
-/* ── TABLE 行操作 ── */
-type Row = Record<string, unknown> & {
-  _rowAction?: 'ADD' | 'UPDATE' | 'DELETE' | 'UNCHANGED'
-  _rowId?: string
-}
-const tableRows = computed<Row[]>(() => {
-  const v = props.modelValue
-  return Array.isArray(v) ? (v as Row[]) : []
-})
-
-function addRow() {
-  if (props.field.type !== 'TABLE') return
-  const row: Row = { _rowAction: 'ADD' }
-  for (const sf of props.field.subFields) row[sf.name] = ''
-  emit('update:modelValue', [...tableRows.value, row])
-}
-
-function removeRow(idx: number) {
-  const rows = [...tableRows.value]
-  const row = rows[idx] as Row
-  if (row._rowAction === 'ADD') {
-    rows.splice(idx, 1)
-  } else {
-    rows[idx] = { ...row, _rowAction: 'DELETE' as const }
-  }
-  emit('update:modelValue', rows)
-}
-
-function updateCell(rowIdx: number, subName: string, value: unknown) {
-  emit(
-    'update:modelValue',
-    tableRows.value.map((r, i) => {
-      if (i !== rowIdx) return r
-      const row = r as Row
-      const nextAction: Row['_rowAction'] =
-        row._rowAction === 'UNCHANGED' ? 'UPDATE' : (row._rowAction ?? 'ADD')
-      return { ...row, [subName]: value, _rowAction: nextAction }
-    }),
-  )
-}
-
-/* ── REFERENCE 选择器状态 ── */
-const referenceSelectorVisible = ref(false)
-/** 从选择器回填的显示值（UI 用），v1 编辑回显无法反查时仍显示原始 ID。 */
-const referenceDisplayValue = ref('')
-
-const referenceDisplayText = computed(
-  () => props.referenceLabel || referenceDisplayValue.value || strVal.value,
+/** 主渲染控件：查注册表动态挂载（未注册类型 → 不渲染，消费方兜底）。 */
+const controlComponent = computed(
+  () => getDynamicFieldDescriptor(props.field.type)?.component ?? null,
 )
 
-function onReferenceSelect(payload: IdValueProperty) {
-  referenceDisplayValue.value = payload.value
-  emit('update:modelValue', payload.id)
+/** 动态挂载控件的事件负载无静态类型（<component :is>），显式声明为 unknown。 */
+function onControlUpdate(value: unknown) {
+  emit('update:modelValue', value)
 }
 </script>
 
@@ -113,165 +59,15 @@ function onReferenceSelect(payload: IdValueProperty) {
       {{ field.label ?? field.name }}
     </label>
 
-    <!-- TEXT -->
-    <el-input
-      v-if="field.type === 'TEXT'"
-      :model-value="strVal"
+    <component
+      :is="controlComponent"
+      v-if="controlComponent"
+      :field="field"
+      :model-value="modelValue"
       :readonly="readonly"
-      @update:model-value="emit('update:modelValue', $event)"
+      :reference-label="referenceLabel"
+      @update:model-value="onControlUpdate"
     />
-
-    <!-- RICH_TEXT（降级 textarea） -->
-    <el-input
-      v-else-if="field.type === 'RICH_TEXT'"
-      type="textarea"
-      :rows="4"
-      :model-value="strVal"
-      :readonly="readonly"
-      @update:model-value="emit('update:modelValue', $event)"
-    />
-
-    <!-- NUMBER -->
-    <el-input-number
-      v-else-if="field.type === 'NUMBER'"
-      :model-value="numVal"
-      :disabled="readonly"
-      @update:model-value="emit('update:modelValue', $event)"
-    />
-
-    <!-- DATE -->
-    <el-date-picker
-      v-else-if="field.type === 'DATE'"
-      value-format="YYYY-MM-DD"
-      :model-value="strVal"
-      :disabled="readonly"
-      @update:model-value="emit('update:modelValue', $event)"
-    />
-
-    <!-- BOOL -->
-    <el-switch
-      v-else-if="field.type === 'BOOL'"
-      :model-value="boolVal"
-      :disabled="readonly"
-      @update:model-value="emit('update:modelValue', $event)"
-    />
-
-    <!-- DICT（走 DictSelect 通道，支持 select/radio 变体） -->
-    <DictSelect
-      v-else-if="field.type === 'DICT'"
-      :type="field.dictType"
-      :render-as="field.renderAs"
-      :model-value="strVal"
-      :disabled="readonly"
-      @update:model-value="emit('update:modelValue', $event)"
-    />
-
-    <!-- REFERENCE（关联选择器） -->
-    <div v-else-if="field.type === 'REFERENCE'" class="dynamic-field__reference">
-      <el-input :model-value="referenceDisplayText" placeholder="请选择关联记录" readonly>
-        <template #append>
-          <el-button
-            :disabled="readonly || !field.targetFormId"
-            @click="referenceSelectorVisible = true"
-          >
-            选择
-          </el-button>
-        </template>
-      </el-input>
-      <ReferenceSelector
-        v-if="referenceSelectorVisible"
-        v-model:visible="referenceSelectorVisible"
-        :target-form-key="field.targetFormId ?? ''"
-        :selected-id="strVal"
-        @select="onReferenceSelect"
-      />
-    </div>
-
-    <!-- TABLE（内嵌子表，可增删行） -->
-    <div v-else-if="field.type === 'TABLE'" class="dynamic-field__table">
-      <table class="dynamic-field__table-inner">
-        <thead>
-          <tr>
-            <th v-for="sf in field.subFields" :key="sf.name">{{ sf.name }}</th>
-            <th v-if="!readonly">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <template v-for="(row, rowIdx) in tableRows" :key="rowIdx">
-            <tr v-if="(row as Row)._rowAction !== 'DELETE'">
-              <td v-for="sf in field.subFields" :key="sf.name">
-                <!-- TEXT -->
-                <el-input
-                  v-if="sf.type === 'TEXT'"
-                  size="small"
-                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                  :readonly="readonly"
-                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
-                />
-                <!-- RICH_TEXT（降级 textarea） -->
-                <el-input
-                  v-else-if="sf.type === 'RICH_TEXT'"
-                  size="small"
-                  type="textarea"
-                  :rows="3"
-                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                  :readonly="readonly"
-                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
-                />
-                <!-- NUMBER -->
-                <el-input-number
-                  v-else-if="sf.type === 'NUMBER'"
-                  size="small"
-                  :model-value="Number(tableRows[rowIdx]?.[sf.name] ?? 0)"
-                  :disabled="readonly"
-                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
-                />
-                <!-- DATE -->
-                <el-date-picker
-                  v-else-if="sf.type === 'DATE'"
-                  size="small"
-                  value-format="YYYY-MM-DD"
-                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                  :disabled="readonly"
-                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
-                />
-                <!-- BOOL -->
-                <el-switch
-                  v-else-if="sf.type === 'BOOL'"
-                  size="small"
-                  :model-value="Boolean(tableRows[rowIdx]?.[sf.name])"
-                  :disabled="readonly"
-                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
-                />
-                <!-- DICT（透传子字段 dictType + renderAs） -->
-                <DictSelect
-                  v-else-if="sf.type === 'DICT'"
-                  size="small"
-                  :type="sf.dictType ?? ''"
-                  :render-as="sf.renderAs"
-                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                  :disabled="readonly"
-                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
-                />
-                <!-- REFERENCE（降级 input 占位）/ TABLE（不递归）/ fallback -->
-                <el-input
-                  v-else
-                  size="small"
-                  :model-value="String(tableRows[rowIdx]?.[sf.name] ?? '')"
-                  placeholder="引用类型（文本占位）"
-                  :readonly="readonly"
-                  @update:model-value="updateCell(rowIdx, sf.name, $event)"
-                />
-              </td>
-              <td v-if="!readonly">
-                <el-button size="small" type="danger" @click="removeRow(rowIdx)">删除</el-button>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
-      <el-button v-if="!readonly" size="small" @click="addRow">+ 添加行</el-button>
-    </div>
   </div>
 </template>
 
@@ -295,7 +91,7 @@ function onReferenceSelect(payload: IdValueProperty) {
   margin-right: var(--sw-space-4);
 }
 
-/* 控件高度统一 */
+/* 控件高度统一（:deep 穿透到注册表挂载的子控件） */
 .dynamic-field :deep(.el-input__wrapper),
 .dynamic-field :deep(.el-input-number__wrapper),
 .dynamic-field :deep(.el-select__wrapper) {
@@ -316,35 +112,5 @@ function onReferenceSelect(payload: IdValueProperty) {
 .dynamic-field :deep(.el-select__wrapper),
 .dynamic-field :deep(.el-button) {
   border-radius: var(--sw-radius-base);
-}
-
-/* ── 内嵌子表 ── */
-.dynamic-field__table {
-  width: 100%;
-}
-
-.dynamic-field__table-inner {
-  border-collapse: collapse;
-  width: 100%;
-  margin-bottom: var(--sw-space-8);
-  border: 1px solid var(--sw-border-base);
-}
-
-.dynamic-field__table-inner th,
-.dynamic-field__table-inner td {
-  padding: var(--sw-space-4) var(--sw-space-8);
-  text-align: left;
-  border: 1px solid var(--sw-border-light);
-}
-
-.dynamic-field__table-inner th {
-  font-size: var(--sw-font-caption);
-  font-weight: var(--sw-font-weight-caption);
-  background: var(--sw-fill-base);
-}
-
-/* ── REFERENCE 选择器 ── */
-.dynamic-field__reference {
-  width: 100%;
 }
 </style>

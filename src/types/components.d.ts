@@ -12,6 +12,9 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     BlankPage: typeof import('./../components/BlankPage.vue')['default']
+    BoolControl: typeof import('./../components/dynamic-field-controls/BoolControl.vue')['default']
+    DateControl: typeof import('./../components/dynamic-field-controls/DateControl.vue')['default']
+    DictControl: typeof import('./../components/dynamic-field-controls/DictControl.vue')['default']
     DynamicField: typeof import('./../components/DynamicField.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAside: typeof import('element-plus/es')['ElAside']
@@ -63,10 +66,16 @@ declare module 'vue' {
     ListPagination: typeof import('./../components/page-layout/ListPagination.vue')['default']
     ListTable: typeof import('./../components/page-layout/ListTable.vue')['default']
     ListToolbar: typeof import('./../components/page-layout/ListToolbar.vue')['default']
+    NumberControl: typeof import('./../components/dynamic-field-controls/NumberControl.vue')['default']
+    PlaceholderControl: typeof import('./../components/dynamic-field-controls/PlaceholderControl.vue')['default']
+    ReferenceControl: typeof import('./../components/dynamic-field-controls/ReferenceControl.vue')['default']
+    RichTextControl: typeof import('./../components/dynamic-field-controls/RichTextControl.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StandardFormTemplate: typeof import('./../components/page-layout/StandardFormTemplate.vue')['default']
     StandardListTemplate: typeof import('./../components/page-layout/StandardListTemplate.vue')['default']
+    TableControl: typeof import('./../components/dynamic-field-controls/TableControl.vue')['default']
+    TextControl: typeof import('./../components/dynamic-field-controls/TextControl.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
