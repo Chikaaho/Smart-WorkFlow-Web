@@ -20,6 +20,8 @@
  *
  * 说明：flow-graph adapter 契约无 edge 点击事件，条件边关键词编辑放在 CONDITION
  * 节点属性面板内（列出其出边逐条编辑），不走边选中交互。
+ * 属性面板按节点类型查 NODE_PANEL_REGISTRY（panels/node-panel-registry.ts）动态挂载，
+ * 各类型面板为独立组件（panels/*.vue），新增节点类型 = 加一条描述符，本组件零改。
  */
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -41,12 +43,7 @@ import {
   saveDraftGraph,
 } from '@/modules/agent/api'
 import {
-  DEFAULT_VARIABLE_NAME,
-  NODE_CONFIG_KEY_INPUT_VAR,
   NODE_CONFIG_KEY_MAX_ITERATIONS,
-  NODE_CONFIG_KEY_MODEL_ID,
-  NODE_CONFIG_KEY_OUTPUT_VAR,
-  NODE_CONFIG_KEY_TOOL_NAME,
   NODE_TYPE_CONDITION,
   NODE_TYPE_END,
   NODE_TYPE_FORK,
@@ -59,6 +56,7 @@ import {
   elementsToFlowGraphData,
   flowGraphDataToElements,
 } from '@/modules/agent/utils/graphAdapter'
+import { getNodePanelDescriptor } from './panels/node-panel-registry'
 import type {
   AgentGraphExecuteResp,
   AgentModelConfigOption,
@@ -108,6 +106,14 @@ const conditionOutEdges = computed<FlowGraphEdge[]>(() => {
   if (selectedNodeType.value !== NODE_TYPE_CONDITION || !selectedNode.value) return []
   return graphData.value.edges.filter((e) => e.source === selectedNode.value?.id)
 })
+
+/**
+ * 属性面板组件：按节点类型查 NODE_PANEL_REGISTRY 动态挂载（<component :is>）。
+ * 注册表缺描述符的类型 → 无面板（仅保留删除按钮），消费方零 if/switch。
+ */
+const panelDescriptor = computed(() => getNodePanelDescriptor(selectedNodeType.value))
+const panelComponent = computed(() => panelDescriptor.value?.component ?? null)
+const panelLabel = computed(() => panelDescriptor.value?.label ?? selectedNodeType.value)
 
 const NODE_TYPES = [
   NODE_TYPE_START,
@@ -411,164 +417,22 @@ onBeforeUnmount(() => {
             <span class="panel-sub">{{ selectedNode.type }}</span>
           </div>
 
-          <!-- START/END：无可编辑项 -->
-          <template
-            v-if="selectedNodeType === NODE_TYPE_START || selectedNodeType === NODE_TYPE_END"
-          >
-            <el-empty
-              :description="`${NODE_TYPE_LABELS[selectedNodeType] ?? selectedNodeType}节点无可编辑属性`"
-              :image-size="60"
-            />
-          </template>
-
-          <!-- LLM：模型配置下拉 + 输入/输出变量名 -->
-          <template v-else-if="selectedNodeType === NODE_TYPE_LLM">
-            <div class="field-row">
-              <div class="field-label">模型配置</div>
-              <el-select
-                :model-value="
-                  (selectedNode.data?.[NODE_CONFIG_KEY_MODEL_ID] as number | undefined) ?? null
-                "
-                placeholder="选择模型配置"
-                style="width: 100%"
-                @change="(v) => updateNodeData(NODE_CONFIG_KEY_MODEL_ID, v)"
-              >
-                <el-option
-                  v-for="m in modelOptions"
-                  :key="m.id"
-                  :label="`${m.name}（${m.modelName}）`"
-                  :value="m.id"
-                />
-              </el-select>
-            </div>
-            <div class="field-row">
-              <div class="field-label">输入变量名</div>
-              <el-input
-                :model-value="
-                  (selectedNode.data?.[NODE_CONFIG_KEY_INPUT_VAR] as string | undefined) ?? ''
-                "
-                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
-                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_INPUT_VAR, v)"
-              />
-            </div>
-            <div class="field-row">
-              <div class="field-label">输出变量名</div>
-              <el-input
-                :model-value="
-                  (selectedNode.data?.[NODE_CONFIG_KEY_OUTPUT_VAR] as string | undefined) ?? ''
-                "
-                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
-                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_OUTPUT_VAR, v)"
-              />
-            </div>
-          </template>
-
-          <!-- TOOL：工具下拉（internal/external 合并，value=toolName 精确值）+ 输入/输出变量名 -->
-          <template v-else-if="selectedNodeType === NODE_TYPE_TOOL">
-            <div class="field-row">
-              <div class="field-label">工具</div>
-              <el-select
-                :model-value="
-                  (selectedNode.data?.[NODE_CONFIG_KEY_TOOL_NAME] as string | undefined) ?? null
-                "
-                placeholder="选择工具"
-                style="width: 100%"
-                @change="(v) => updateNodeData(NODE_CONFIG_KEY_TOOL_NAME, v)"
-              >
-                <el-option
-                  v-for="t in toolOptions"
-                  :key="`${t.source}:${t.toolName}`"
-                  :label="`${t.toolName}（${t.source === 'internal' ? '内部' : '外部'}）`"
-                  :value="t.toolName"
-                />
-              </el-select>
-            </div>
-            <div class="field-row">
-              <div class="field-label">输入变量名</div>
-              <el-input
-                :model-value="
-                  (selectedNode.data?.[NODE_CONFIG_KEY_INPUT_VAR] as string | undefined) ?? ''
-                "
-                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
-                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_INPUT_VAR, v)"
-              />
-            </div>
-            <div class="field-row">
-              <div class="field-label">输出变量名</div>
-              <el-input
-                :model-value="
-                  (selectedNode.data?.[NODE_CONFIG_KEY_OUTPUT_VAR] as string | undefined) ?? ''
-                "
-                :placeholder="`留空 = 默认变量 ${DEFAULT_VARIABLE_NAME}`"
-                @change="(v) => handleVarNameChange(NODE_CONFIG_KEY_OUTPUT_VAR, v)"
-              />
-            </div>
-          </template>
-
-          <!-- LOOP：最大迭代次数数字输入（Integer ≥1，空值/非法删键，缺省后端默认 10） -->
-          <template v-else-if="selectedNodeType === NODE_TYPE_LOOP">
-            <div class="field-row">
-              <div class="field-label">最大迭代次数</div>
-              <el-input
-                :model-value="String(selectedNode.data?.[NODE_CONFIG_KEY_MAX_ITERATIONS] ?? '')"
-                type="number"
-                min="1"
-                placeholder="留空 = 后端默认 10（≥1）"
-                @change="(v) => handleMaxIterationsChange(v)"
-              />
-            </div>
-            <el-alert
-              title="循环头节点：出边唯一进入循环体；迭代次数超限执行报错"
-              type="info"
-              :closable="false"
-              show-icon
-            />
-          </template>
-
-          <!-- FORK：扇出，无 config 编辑项，仅静态说明（分支语义落在出边） -->
-          <template v-else-if="selectedNodeType === NODE_TYPE_FORK">
-            <el-alert
-              title="并行分支节点：出边数 = 并行分支数（≥2），各分支并发执行后可在 JOIN 汇合"
-              type="info"
-              :closable="false"
-              show-icon
-            />
-          </template>
-
-          <!-- JOIN：汇合，无 config 编辑项，仅静态说明（入边 = 汇合分支） -->
-          <template v-else-if="selectedNodeType === NODE_TYPE_JOIN">
-            <el-alert
-              title="汇合节点：入边数 = 汇合分支数（≥2），等待全部分支到达后合并单点继续"
-              type="info"
-              :closable="false"
-              show-icon
-            />
-          </template>
-
-          <!-- CONDITION：出边关键词编辑（写 edge.label，留空=默认边） -->
-          <template v-else-if="selectedNodeType === NODE_TYPE_CONDITION">
-            <div class="field-row">
-              <div class="field-label">出边关键词</div>
-              <el-alert
-                title="输入关键词后文本命中即走该边；留空为默认边（仅一条）"
-                type="info"
-                :closable="false"
-                show-icon
-              />
-              <div v-for="edge in conditionOutEdges" :key="edge.id" class="edge-row">
-                <div class="edge-name">{{ edgeDisplayName(edge) }}</div>
-                <el-input
-                  :model-value="edge.label ?? ''"
-                  placeholder="关键词（留空=默认边）"
-                  size="small"
-                  @change="(v) => handleKeywordChange(edge, v)"
-                />
-                <el-button size="small" link type="danger" @click="removeEdge(edge.id)">
-                  删除边
-                </el-button>
-              </div>
-            </div>
-          </template>
+          <!-- 面板主体：按节点类型查 NODE_PANEL_REGISTRY 动态挂载（无 if/switch 链） -->
+          <component
+            :is="panelComponent"
+            v-if="panelComponent"
+            :node="selectedNode"
+            :label="panelLabel"
+            :model-options="modelOptions"
+            :tool-options="toolOptions"
+            :condition-out-edges="conditionOutEdges"
+            :edge-display-name="edgeDisplayName"
+            @update-node-data="updateNodeData"
+            @var-name-change="handleVarNameChange"
+            @max-iterations-change="handleMaxIterationsChange"
+            @keyword-change="handleKeywordChange"
+            @remove-edge="removeEdge"
+          />
 
           <!-- 删除节点（START 除外） -->
           <div v-if="selectedNodeType !== NODE_TYPE_START" class="panel-footer">
@@ -706,32 +570,6 @@ onBeforeUnmount(() => {
 .panel-sub {
   margin-left: 8px;
   font-weight: 400;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.field-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.field-label {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-
-.edge-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
-  border: 1px dashed var(--el-border-color-light);
-  border-radius: 4px;
-}
-
-.edge-name {
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
