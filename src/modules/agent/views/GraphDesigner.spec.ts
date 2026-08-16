@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { defineComponent, nextTick } from 'vue'
 
 vi.mock('@/adapters/flow-graph', () => ({
   mountFlowGraph: vi.fn(() => ({ exportGraph: vi.fn(), destroy: vi.fn() })),
@@ -52,6 +52,7 @@ import {
   NODE_CONFIG_KEY_OUTPUT_VAR,
 } from '@/modules/agent/utils/graphAdapter'
 import type { ProcessGraph } from '@/contracts/agent'
+import { registerNodePanelDescriptor } from './panels/node-panel-registry'
 import GraphDesigner from './GraphDesigner.vue'
 
 const stubs = {
@@ -533,6 +534,31 @@ describe('GraphDesigner.vue', () => {
     await nextTick()
     expect(ElMessage.warning).toHaveBeenCalledWith('LOOP 节点 maxIterations 必须 ≥ 1')
     expect(nodeById(data, 'loop-1').data?.[NODE_CONFIG_KEY_MAX_ITERATIONS]).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('可插拔性：测试型注册新节点面板（PROBE），GraphDesigner 消费方零改动即渲染', async () => {
+    registerNodePanelDescriptor({
+      type: 'PROBE',
+      label: '探针',
+      component: defineComponent({
+        name: 'ProbePanel',
+        template: '<div data-testid="probe-panel">探针面板内容</div>',
+      }),
+    })
+    const wrapper = await mountLoadedWith({
+      ...mockGraph,
+      elements: [
+        ...mockGraph.elements,
+        { id: 'probe-1', kind: 'node', type: 'PROBE', style: { x: 1000, y: 0 } },
+      ],
+    })
+    const [, data, events] = lastMountCall()
+    events.onNodeClick?.(nodeById(data, 'probe-1'))
+    await nextTick()
+    // 消费方（GraphDesigner）零 if/switch：注册描述符后属性面板直接挂载新面板
+    expect(wrapper.find('.property-panel').find('[data-testid="probe-panel"]').exists()).toBe(true)
+    expect(wrapper.find('.property-panel').text()).toContain('探针面板内容')
     wrapper.unmount()
   })
 
