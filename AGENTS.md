@@ -33,7 +33,7 @@ already-issued direction and report any infeasibility through the prescribed
 receipt path.
 
 For pnpm/npm/node compilation, tests, or builds, use
-`NODE_OPTIONS="--max-old-space-size=512"`.  Before any compile/test/build
+`NODE_OPTIONS="--max-old-space-size=2048"`.  Before any compile/test/build
 operation, check that no backend compile/test/build process is running; wait
 rather than run the two stacks concurrently.  The required completion gate is
 `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, subject to the
