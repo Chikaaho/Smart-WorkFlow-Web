@@ -16,7 +16,7 @@ describe('modules/system/api/user — 用户管理 7 个', () => {
 
   it('pageUsers: POST /system/user/page with params + body, adapts records→list', async () => {
     mockRequest.mockResolvedValueOnce({
-      records: [{ id: '1', username: 'admin', realName: '管理员', status: 1 }],
+      records: [{ id: '1', username: 'admin', realName: '管理员', status: 0 }],
       total: 100,
       pageNum: 1,
       pageSize: 10,
@@ -51,7 +51,7 @@ describe('modules/system/api/user — 用户管理 7 个', () => {
   // ─── getUser ───
 
   it('getUser: GET /system/user/{id}', async () => {
-    const item = { id: '1', username: 'admin', realName: '管理员', status: 1 }
+    const item = { id: '1', username: 'admin', realName: '管理员', status: 0 }
     mockRequest.mockResolvedValueOnce(item)
 
     const result = await getUser('1')
@@ -70,7 +70,7 @@ describe('modules/system/api/user — 用户管理 7 个', () => {
       username: 'newuser',
       realName: '新用户',
       plainPassword: 'p@ss1234',
-      status: 1,
+      status: 0,
     })
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -84,12 +84,12 @@ describe('modules/system/api/user — 用户管理 7 个', () => {
 
   it('createUser: without plainPassword does not throw', async () => {
     mockRequest.mockResolvedValueOnce('100')
-    const id = await createUser({ username: 'nopwd', status: 1 })
+    const id = await createUser({ username: 'nopwd', status: 0 })
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'POST',
         url: '/system/user',
-        data: { username: 'nopwd', status: 1 },
+        data: { username: 'nopwd', status: 0 },
       }),
     )
     expect(id).toBe('100')
@@ -104,7 +104,7 @@ describe('modules/system/api/user — 用户管理 7 个', () => {
       username: 'updated',
       realName: '已更新',
       plainPassword: 'newp@ss',
-      status: 1,
+      status: 0,
     })
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({

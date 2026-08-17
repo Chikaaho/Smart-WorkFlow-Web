@@ -18,6 +18,12 @@ import {
   deleteDept,
 } from '@/modules/system/api/dept'
 import type { SysDept } from '@/modules/system/types/dept'
+import {
+  SYS_DEPT_STATUS,
+  deptStatusOptions,
+  deptStatusTagType,
+  deptStatusLabel,
+} from '@/modules/system/constants'
 import { ListToolbar, StandardFormTemplate, FormSection, FormGrid } from '@/components/page-layout'
 
 // ─── 列表状态 ───
@@ -69,7 +75,7 @@ const form = reactive<SysDept>({
   code: '',
   parentId: '0',
   sort: 0,
-  status: 1,
+  status: SYS_DEPT_STATUS.NORMAL,
 })
 
 function resetForm() {
@@ -77,7 +83,7 @@ function resetForm() {
   form.code = ''
   form.parentId = '0'
   form.sort = 0
-  form.status = 1
+  form.status = SYS_DEPT_STATUS.NORMAL
   editingId.value = null
   formError.value = ''
 }
@@ -235,8 +241,8 @@ onMounted(loadTree)
         <el-table-column prop="sort" label="排序" width="70" />
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? '正常' : '停用' }}
+            <el-tag :type="deptStatusTagType(row.status)" size="small">
+              {{ deptStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -312,8 +318,12 @@ onMounted(loadTree)
           <div class="form-field">
             <label class="form-field__label">状态</label>
             <el-select v-model="form.status" style="width: 100%">
-              <el-option label="正常" :value="1" />
-              <el-option label="停用" :value="0" />
+              <el-option
+                v-for="opt in deptStatusOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </el-select>
           </div>
         </FormGrid>

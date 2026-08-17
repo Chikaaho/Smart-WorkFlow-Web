@@ -874,7 +874,7 @@ export const mockRegistrations: MockRegistration[] = [
         email: String(data.email ?? ''),
         phone: String(data.phone ?? ''),
         sex: Number(data.sex ?? 0),
-        status: Number(data.status ?? 1),
+        status: Number(data.status ?? 0),
         deptId: String(data.deptId ?? ''),
         isAdmin: false,
         avatar: null,
@@ -1035,7 +1035,7 @@ export const mockRegistrations: MockRegistration[] = [
         name: String(data.name ?? ''),
         code: String(data.code ?? ''),
         sort: Number(data.sort ?? 0),
-        status: Number(data.status ?? 1),
+        status: Number(data.status ?? 0),
         createTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
         updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
       }

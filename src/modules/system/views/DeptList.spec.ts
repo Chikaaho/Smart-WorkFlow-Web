@@ -15,7 +15,16 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {}, params: {} }),
 }))
 
-import { listDeptTree, deleteDept } from '@/modules/system/api/dept'
+vi.mock('element-plus', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...(actual as object),
+    ElMessage: { success: vi.fn(), error: vi.fn() },
+    ElMessageBox: { confirm: vi.fn() },
+  }
+})
+
+import { listDeptTree, createDept, deleteDept } from '@/modules/system/api/dept'
 import type { SysDept } from '@/modules/system/types/dept'
 import DeptList from './DeptList.vue'
 
@@ -60,9 +69,9 @@ describe('DeptList', () => {
 
   it('builds tree from flat data via loadTree', async () => {
     const flatData: SysDept[] = [
-      { id: '1', parentId: '0', name: '总公司', code: 'HQ', status: 1 },
-      { id: '2', parentId: '1', name: '技术部', code: 'tech', status: 1 },
-      { id: '3', parentId: '1', name: '市场部', code: 'mkt', status: 1 },
+      { id: '1', parentId: '0', name: '总公司', code: 'HQ', status: 0 },
+      { id: '2', parentId: '1', name: '技术部', code: 'tech', status: 0 },
+      { id: '3', parentId: '1', name: '市场部', code: 'mkt', status: 0 },
     ]
     vi.mocked(listDeptTree).mockResolvedValue(flatData)
 
@@ -85,5 +94,35 @@ describe('DeptList', () => {
     vi.mocked(deleteDept).mockResolvedValue(undefined)
     await deleteDept('1')
     expect(deleteDept).toHaveBeenCalledWith('1')
+  })
+
+  // ─── 状态语义（I51：0=正常 / 1=停用，无锁定） ───
+
+  it('新建表单默认 status=0（正常），openCreate 重置后仍为 0', () => {
+    const wrapper = mount(DeptList, { global: { stubs: minimalStubs } })
+    const vm = wrapper.vm as unknown as {
+      form: SysDept
+      openCreate: () => void
+    }
+    expect(vm.form.status).toBe(0)
+    vm.openCreate()
+    expect(vm.form.status).toBe(0)
+  })
+
+  it('选择「停用」(status=1) 后提交 payload 的 status=1', async () => {
+    vi.mocked(createDept).mockResolvedValue('10')
+    const wrapper = mount(DeptList, { global: { stubs: minimalStubs } })
+    await nextTick()
+    const vm = wrapper.vm as unknown as {
+      form: SysDept
+      handleSubmit: () => Promise<void>
+    }
+    vm.form.name = '测试部'
+    vm.form.code = 'TEST'
+    vm.form.status = 1
+    await vm.handleSubmit()
+    expect(vi.mocked(createDept)).toHaveBeenCalledWith(
+      expect.objectContaining({ name: '测试部', code: 'TEST', status: 1 }),
+    )
   })
 })

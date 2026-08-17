@@ -14,6 +14,12 @@ import { pageUsers, getUser, createUser, updateUser, deleteUser } from '@/module
 import type { SysUser, UserFormRequest, UserFilter } from '@/modules/system/types/user'
 import type { PageQuery } from '@/contracts/common'
 import {
+  SYS_USER_STATUS,
+  userStatusOptions,
+  userStatusTagType,
+  userStatusLabel,
+} from '@/modules/system/constants'
+import {
   StandardListTemplate,
   StandardFormTemplate,
   FormSection,
@@ -100,7 +106,7 @@ const form = reactive<UserFormRequest>({
   email: '',
   phone: '',
   sex: 0,
-  status: 1,
+  status: SYS_USER_STATUS.NORMAL,
   deptId: '',
   plainPassword: '',
 })
@@ -111,7 +117,7 @@ function resetForm() {
   form.email = ''
   form.phone = ''
   form.sex = 0
-  form.status = 1
+  form.status = SYS_USER_STATUS.NORMAL
   form.deptId = ''
   form.plainPassword = ''
   editingId.value = null
@@ -238,8 +244,12 @@ onMounted(loadList)
         @keyup.enter="handleQuery"
       />
       <el-select v-model="filter.status" placeholder="状态" clearable style="width: 120px">
-        <el-option label="正常" :value="1" />
-        <el-option label="停用" :value="0" />
+        <el-option
+          v-for="opt in userStatusOptions"
+          :key="opt.value"
+          :label="opt.label"
+          :value="opt.value"
+        />
       </el-select>
     </template>
     <template #filter-actions>
@@ -268,8 +278,8 @@ onMounted(loadList)
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? '正常' : '停用' }}
+          <el-tag :type="userStatusTagType(row.status)" size="small">
+            {{ userStatusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -335,8 +345,12 @@ onMounted(loadList)
           <div class="form-field">
             <label class="form-field__label">状态</label>
             <el-select v-model="form.status" style="width: 100%">
-              <el-option label="正常" :value="1" />
-              <el-option label="停用" :value="0" />
+              <el-option
+                v-for="opt in userStatusOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </el-select>
           </div>
           <div class="form-field">
