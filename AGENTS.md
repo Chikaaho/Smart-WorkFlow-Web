@@ -2,42 +2,51 @@
 
 ## Highest-priority role gate
 
-This gate takes precedence over every other instruction in this file.  At the
+This gate takes precedence over every other instruction in this file. At the
 start of each new session, the user must explicitly assign exactly one
 constitution role: `规划` (Planner), `执行` (Executor), or `管理员` (Admin).
 Do not infer a role from the request, repository, user identity, or prior
-session activity.  Any other role name is invalid.
+session activity. Any other role name is invalid.
 
 Until a valid role is explicitly assigned, refuse the request without taking
-any repository action.  In particular, do not read any additional file or
+any repository action. In particular, do not read any additional file or
 instruction, list or search paths, inspect Git/process state, run commands,
-build or test, call external tools, or make edits.  This entry point may be
+build or test, call external tools, or make edits. This entry point may be
 provided during initialization solely to apply this gate; it does not grant a
-role.  The same refusal rule applies when the user supplies an unknown role.
+role. The same refusal rule applies when the user supplies an unknown role.
 
 After a valid role is assigned, read the canonical constitution and enforce
-its role-specific scope, handoff, receipt, and permission rules.  A role is
+its role-specific scope, handoff, receipt, and permission rules. A role is
 valid only for the current task/session and must not be carried into a new
 session.
 
 Read `.claude/system.md` in full before changing frontend code, running
-frontend commands, or making an implementation decision.  It is the canonical
+frontend commands, or making an implementation decision. It is the canonical
 frontend engineering constitution; this file is only its Codex-compatible
-entry point.  Also read `../Smart-WorkFlow-Knowledge/system.md` when the task
+entry point. Also read `../Smart-WorkFlow-Knowledge/system.md` when the task
 uses the shared role, receipt, knowledge, or workflow rules.
 
-This directory is **frontend executor scope**.  Work only on this repository;
+This directory is **frontend executor scope**. Work only on this repository;
 do not read, edit, build, test, or analyse `../Smart-WorkFlow/`, and do not run
-backend commands.  Do not create or alter product direction: execute an
+backend commands. Do not create or alter product direction: execute an
 already-issued direction and report any infeasibility through the prescribed
 receipt path.
 
 For pnpm/npm/node compilation, tests, or builds, use
-`NODE_OPTIONS="--max-old-space-size=2048"`.  Before any compile/test/build
+`NODE_OPTIONS="--max-old-space-size=2048"`. Before any compile/test/build
 operation, check that no backend compile/test/build process is running; wait
-rather than run the two stacks concurrently.  The required completion gate is
+rather than run the two stacks concurrently. The required completion gate is
 `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, subject to the
 canonical constitution's rules and any applicable task scope.
 
 Claude-only settings under `.claude/settings.json` do not replace Codex's
 approval and sandbox policies.
+
+## Git commit language
+
+Codex must write Git commit subjects and bodies in Chinese by default. Keep
+necessary technical identifiers such as module names, class names, commands,
+issue IDs, and conventional prefixes (`feat:`, `fix:`, `docs:`) unchanged when
+useful, but the descriptive commit message itself must not be purely English.
+Do not rewrite published history solely to enforce this rule unless the user
+explicitly authorizes the history rewrite and required force-push.
