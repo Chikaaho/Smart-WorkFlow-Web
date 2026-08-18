@@ -58,3 +58,11 @@ export async function updateRole(data: SysRole): Promise<void> {
 export async function deleteRole(id: string): Promise<void> {
   return request<void>({ method: 'DELETE', url: `/system/role/${id}` })
 }
+
+export async function getRoleMenus(id: string): Promise<string[]> {
+  return request<string[]>({ method: 'GET', url: `/system/role/${id}/menus` })
+}
+
+export async function updateRoleMenus(id: string, menuIds: string[]): Promise<void> {
+  return request<void>({ method: 'PUT', url: `/system/role/${id}/menus`, data: menuIds })
+}

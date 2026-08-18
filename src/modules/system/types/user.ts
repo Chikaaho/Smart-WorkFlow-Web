@@ -20,6 +20,7 @@ export interface SysUser {
   /** 审计字段 */
   createTime?: string
   updateTime?: string
+  roleIds?: string[]
 }
 
 /** 用户创建/更新表单（镜像 UserFormRequest DTO） */
@@ -34,6 +35,7 @@ export interface UserFormRequest {
   deptId?: string
   /** 明文密码，仅创建时必填，更新时可选 */
   plainPassword?: string
+  roleIds?: string[]
 }
 
 /** 用户分页筛选 */

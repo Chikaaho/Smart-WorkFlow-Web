@@ -10,7 +10,17 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ApiError } from '@/foundation/request'
-import { pageUsers, getUser, createUser, updateUser, deleteUser } from '@/modules/system/api/user'
+import {
+  pageUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  getUserRoles,
+  updateUserRoles,
+} from '@/modules/system/api/user'
+import { pageRoles } from '@/modules/system/api/role'
+import type { SysRole } from '@/modules/system/types/role'
 import type { SysUser, UserFormRequest, UserFilter } from '@/modules/system/types/user'
 import type { PageQuery } from '@/contracts/common'
 import {
@@ -91,6 +101,17 @@ function handlePageSizeChange(s: number) {
 }
 
 const isEmpty = computed(() => !loading.value && !errorMsg.value && list.value.length === 0)
+const roleOptions = ref<SysRole[]>([])
+const roleIds = ref<string[]>([])
+
+async function loadRoleOptions() {
+  try {
+    const result = await pageRoles({ pageNum: 1, pageSize: 200 }, {})
+    roleOptions.value = result.list
+  } catch {
+    roleOptions.value = []
+  }
+}
 
 // ─── 弹窗状态 ───
 
@@ -122,10 +143,12 @@ function resetForm() {
   form.plainPassword = ''
   editingId.value = null
   formError.value = ''
+  roleIds.value = []
 }
 
 function openCreate() {
   resetForm()
+  void loadRoleOptions()
   dialogVisible.value = true
 }
 
@@ -141,12 +164,14 @@ async function openEdit(row: SysUser) {
     form.sex = detail.sex ?? 0
     form.status = detail.status
     form.deptId = detail.deptId ?? ''
+    roleIds.value = await getUserRoles(row.id!)
     // 编辑模式不设置 plainPassword
   } catch {
     formError.value = '加载用户详情失败'
     return
   }
   dialogVisible.value = true
+  await loadRoleOptions()
 }
 
 function closeDialog() {
@@ -167,9 +192,11 @@ async function handleSubmit() {
       const { plainPassword: _, ...updateData } = form
       void _
       await updateUser({ ...updateData, id: editingId.value })
+      await updateUserRoles(editingId.value, roleIds.value)
       ElMessage.success('更新成功')
     } else {
-      await createUser({ ...form })
+      const id = await createUser({ ...form })
+      await updateUserRoles(id, roleIds.value)
       ElMessage.success('创建成功')
     }
     closeDialog()
@@ -356,6 +383,14 @@ onMounted(loadList)
           <div class="form-field">
             <label class="form-field__label">所属部门</label>
             <el-input v-model="form.deptId" placeholder="请输入部门ID" maxlength="32" />
+          </div>
+          <div class="form-field">
+            <label class="form-field__label">角色</label>
+            <el-checkbox-group v-model="roleIds">
+              <el-checkbox v-for="role in roleOptions" :key="role.id" :value="role.id">
+                {{ role.name }}
+              </el-checkbox>
+            </el-checkbox-group>
           </div>
           <div v-if="!editingId" class="form-field">
             <label class="form-field__label">密码</label>

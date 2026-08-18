@@ -10,7 +10,17 @@
 import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox, type TreeInstance } from 'element-plus'
 import { ApiError } from '@/foundation/request'
-import { pageRoles, getRole, createRole, updateRole, deleteRole } from '@/modules/system/api/role'
+import {
+  pageRoles,
+  getRole,
+  createRole,
+  updateRole,
+  deleteRole,
+  getRoleMenus,
+  updateRoleMenus,
+} from '@/modules/system/api/role'
+import { loadMenu } from '@/foundation/menu'
+import type { MenuNode } from '@/contracts/menu'
 import { listDeptTree } from '@/modules/system/api/dept'
 import type { SysRole, RoleFilter } from '@/modules/system/types/role'
 import type { SysDept } from '@/modules/system/types/dept'
@@ -109,6 +119,9 @@ const DATA_SCOPE_DEFAULT = 1
 const deptTree = ref<SysDept[]>([])
 const deptTreeError = ref('')
 const deptTreeRef = ref<TreeInstance | null>(null)
+const permissionTreeRef = ref<TreeInstance | null>(null)
+const permissionTree = ref<MenuNode[]>([])
+const permissionIds = ref<string[]>([])
 
 /** flat 数组 → 嵌套树转换（与 DeptList 同构） */
 function buildDeptTree(list: SysDept[], parentId = '0'): SysDept[] {
@@ -126,6 +139,14 @@ async function loadDeptTree() {
     deptTree.value = buildDeptTree(await listDeptTree())
   } catch {
     deptTreeError.value = '加载部门树失败'
+  }
+}
+
+async function loadPermissionTree() {
+  try {
+    permissionTree.value = await loadMenu()
+  } catch {
+    permissionTree.value = []
   }
 }
 
@@ -175,6 +196,8 @@ function resetForm() {
   form.dataScope = DATA_SCOPE_DEFAULT
   form.deptIds = []
   form.description = ''
+  form.builtIn = false
+  permissionIds.value = []
   editingId.value = null
   formError.value = ''
 }
@@ -182,6 +205,7 @@ function resetForm() {
 async function openCreate() {
   resetForm()
   await loadDeptTree()
+  await loadPermissionTree()
   dialogVisible.value = true
 }
 
@@ -197,14 +221,17 @@ async function openEdit(row: SysRole) {
     form.dataScope = detail.dataScope ?? DATA_SCOPE_DEFAULT
     form.deptIds = detail.deptIds ?? []
     form.description = detail.description ?? ''
+    permissionIds.value = await getRoleMenus(row.id!)
   } catch {
     formError.value = '加载角色详情失败'
     return
   }
   dialogVisible.value = true
   await loadDeptTree()
+  await loadPermissionTree()
   await nextTick()
   applyDeptCheckedKeys()
+  permissionTreeRef.value?.setCheckedKeys(permissionIds.value)
 }
 
 function closeDialog() {
@@ -228,9 +255,11 @@ async function handleSubmit() {
   try {
     if (editingId.value) {
       await updateRole({ ...data, id: editingId.value })
+      if (!isProtectedRole.value) await updateRoleMenus(editingId.value, permissionIds.value)
       ElMessage.success('更新成功')
     } else {
-      await createRole(data)
+      const id = await createRole(data)
+      await updateRoleMenus(id, permissionIds.value)
       ElMessage.success('创建成功')
     }
     closeDialog()
@@ -244,6 +273,16 @@ async function handleSubmit() {
   } finally {
     submitting.value = false
   }
+}
+
+function handlePermissionCheck() {
+  permissionIds.value = (permissionTreeRef.value?.getCheckedKeys(true) ?? []) as string[]
+}
+
+const isProtectedRole = computed(() => form.builtIn === true && form.code === 'superadmin')
+function canEditRole(input: unknown) {
+  const row = input as SysRole
+  return !(row.builtIn === true && row.code === 'superadmin')
 }
 
 async function handleDelete(row: SysRole) {
@@ -350,8 +389,22 @@ onMounted(loadList)
       </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" link type="primary" @click="editRow(row)">编辑</el-button>
-          <el-button size="small" link type="danger" @click="deleteRow(row)">删除</el-button>
+          <el-button
+            size="small"
+            link
+            type="primary"
+            :disabled="!canEditRole(row)"
+            @click="editRow(row)"
+            >编辑</el-button
+          >
+          <el-button
+            size="small"
+            link
+            type="danger"
+            :disabled="!canEditRole(row)"
+            @click="deleteRow(row)"
+            >删除</el-button
+          >
         </template>
       </el-table-column>
     </el-table>
@@ -392,7 +445,7 @@ onMounted(loadList)
             <el-input
               v-model="form.code"
               placeholder="请输入角色编码"
-              :disabled="!!editingId"
+              :disabled="!!editingId || isProtectedRole"
               maxlength="64"
               show-word-limit
             />
@@ -403,7 +456,7 @@ onMounted(loadList)
           </div>
           <div class="form-field">
             <label class="form-field__label">状态</label>
-            <el-select v-model="form.status" style="width: 100%">
+            <el-select v-model="form.status" style="width: 100%" :disabled="isProtectedRole">
               <el-option label="正常" :value="1" />
               <el-option label="停用" :value="0" />
             </el-select>
@@ -428,7 +481,7 @@ onMounted(loadList)
         <FormGrid :columns="1">
           <div class="form-field">
             <label class="form-field__label">数据范围</label>
-            <el-select v-model="form.dataScope" style="width: 100%">
+            <el-select v-model="form.dataScope" style="width: 100%" :disabled="isProtectedRole">
               <el-option
                 v-for="opt in DATA_SCOPE_OPTIONS"
                 :key="opt.value"
@@ -459,9 +512,28 @@ onMounted(loadList)
         </FormGrid>
       </FormSection>
 
+      <FormSection title="菜单与按钮权限">
+        <el-tree
+          ref="permissionTreeRef"
+          :data="permissionTree"
+          node-key="id"
+          show-checkbox
+          default-expand-all
+          :props="{ label: 'title', children: 'children' }"
+          :disabled="isProtectedRole"
+          @check="handlePermissionCheck"
+        />
+      </FormSection>
+
       <template #actions>
         <el-button @click="closeDialog">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <el-button
+          v-if="!isProtectedRole"
+          type="primary"
+          :loading="submitting"
+          @click="handleSubmit"
+          >保存</el-button
+        >
       </template>
     </StandardFormTemplate>
   </el-dialog>

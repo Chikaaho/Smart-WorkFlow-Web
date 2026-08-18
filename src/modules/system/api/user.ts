@@ -75,3 +75,11 @@ export async function deleteUser(id: string): Promise<void> {
     url: `/system/user/${id}`,
   })
 }
+
+export async function getUserRoles(id: string): Promise<string[]> {
+  return request<string[]>({ method: 'GET', url: `/system/user/${id}/roles` })
+}
+
+export async function updateUserRoles(id: string, roleIds: string[]): Promise<void> {
+  return request<void>({ method: 'PUT', url: `/system/user/${id}/roles`, data: roleIds })
+}

@@ -1002,7 +1002,7 @@ export const MOCK_ROLES_LIST = [
   {
     id: '1',
     name: '超级管理员',
-    code: 'admin',
+    code: 'superadmin',
     sort: 1,
     status: 1,
     dataScope: 5,
@@ -1013,6 +1013,18 @@ export const MOCK_ROLES_LIST = [
   },
   {
     id: '2',
+    name: '管理员',
+    code: 'admin',
+    sort: 2,
+    status: 1,
+    dataScope: 0,
+    builtIn: false,
+    description: '系统初始化普通管理员角色',
+    createTime: '2026-08-18 00:00:00',
+    updateTime: '2026-08-18 00:00:00',
+  },
+  {
+    id: '3',
     name: '普通用户',
     code: 'user',
     sort: 2,
