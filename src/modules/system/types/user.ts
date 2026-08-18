@@ -21,6 +21,7 @@ export interface SysUser {
   createTime?: string
   updateTime?: string
   roleIds?: string[]
+  postIds?: string[]
 }
 
 /** 用户创建/更新表单（镜像 UserFormRequest DTO） */
@@ -36,6 +37,7 @@ export interface UserFormRequest {
   /** 明文密码，仅创建时必填，更新时可选 */
   plainPassword?: string
   roleIds?: string[]
+  postIds?: string[]
 }
 
 /** 用户分页筛选 */
@@ -44,4 +46,6 @@ export interface UserFilter {
   realName?: string
   status?: number
   deptId?: string
+  postId?: string
+  roleId?: string
 }

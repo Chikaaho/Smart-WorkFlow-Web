@@ -3,7 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/foundation/request', () => ({ request: vi.fn() }))
 
 import { request } from '@/foundation/request'
-import { pageUsers, getUser, createUser, updateUser, deleteUser } from './user'
+import {
+  pageUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  getUserRoles,
+  updateUserRoles,
+  getUserPosts,
+  updateUserPosts,
+} from './user'
 
 const mockRequest = vi.mocked(request)
 
@@ -29,7 +39,7 @@ describe('modules/system/api/user — 用户管理 7 个', () => {
         method: 'POST',
         url: '/system/user/page',
         params: { pageNum: 1, pageSize: 10 },
-        data: { username: 'admin' },
+        data: expect.objectContaining({ username: 'admin', keyword: 'admin' }),
       }),
     )
     expect(result.list).toHaveLength(1)
@@ -122,6 +132,30 @@ describe('modules/system/api/user — 用户管理 7 个', () => {
     await deleteUser('1')
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'DELETE', url: '/system/user/1' }),
+    )
+  })
+
+  it('岗位和角色关系端点：按用户读取并替换，支持清空数组', async () => {
+    mockRequest.mockResolvedValue(undefined)
+    await getUserRoles('1')
+    await updateUserRoles('1', [])
+    await getUserPosts('1')
+    await updateUserPosts('1', [])
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ method: 'GET', url: '/system/user/1/roles' }),
+    )
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ method: 'PUT', url: '/system/user/1/roles', data: [] }),
+    )
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ method: 'GET', url: '/system/user/1/posts' }),
+    )
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({ method: 'PUT', url: '/system/user/1/posts', data: [] }),
     )
   })
 })

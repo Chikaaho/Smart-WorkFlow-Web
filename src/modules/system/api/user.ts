@@ -37,7 +37,15 @@ export async function pageUsers(page: PageQuery, filter: UserFilter): Promise<Pa
     method: 'POST',
     url: '/system/user/page',
     params: page,
-    data: filter,
+    data: {
+      username: filter.username,
+      realName: filter.realName,
+      keyword: filter.username || filter.realName,
+      status: filter.status,
+      deptId: filter.deptId,
+      postId: filter.postId,
+      roleId: filter.roleId,
+    },
   })
   return adaptPage(raw)
 }
@@ -82,4 +90,12 @@ export async function getUserRoles(id: string): Promise<string[]> {
 
 export async function updateUserRoles(id: string, roleIds: string[]): Promise<void> {
   return request<void>({ method: 'PUT', url: `/system/user/${id}/roles`, data: roleIds })
+}
+
+export async function getUserPosts(id: string): Promise<string[]> {
+  return request<string[]>({ method: 'GET', url: `/system/user/${id}/posts` })
+}
+
+export async function updateUserPosts(id: string, postIds: string[]): Promise<void> {
+  return request<void>({ method: 'PUT', url: `/system/user/${id}/posts`, data: postIds })
 }

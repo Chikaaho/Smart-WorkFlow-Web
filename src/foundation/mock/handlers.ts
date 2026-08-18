@@ -841,9 +841,28 @@ export const mockRegistrations: MockRegistration[] = [
       let list = [...MOCK_USERS_LIST]
       if (body && typeof body === 'object') {
         const f = body as Record<string, unknown>
-        if (f.username) list = list.filter((u) => u.username.includes(String(f.username)))
+        const keyword = String(f.keyword ?? f.username ?? f.realName ?? '')
+        if (keyword)
+          list = list.filter((u) => u.username.includes(keyword) || u.realName.includes(keyword))
         if (f.status !== undefined && f.status !== null && f.status !== '')
           list = list.filter((u) => u.status === Number(f.status))
+        if (f.deptId !== undefined && f.deptId !== null && f.deptId !== '') {
+          const root = String(f.deptId)
+          const children = new Set([root])
+          let changed = true
+          while (changed) {
+            changed = false
+            for (const dept of MOCK_DEPTS_LIST) {
+              if (children.has(dept.parentId) && !children.has(dept.id)) {
+                children.add(dept.id)
+                changed = true
+              }
+            }
+          }
+          list = list.filter((u) => children.has(u.deptId))
+        }
+        if (f.postId) list = list.filter((u) => u.postIds?.includes(String(f.postId)))
+        if (f.roleId) list = list.filter((u) => u.roleIds?.includes(String(f.roleId)))
       }
       const total = list.length
       const start = (pageNum - 1) * pageSize
@@ -876,6 +895,8 @@ export const mockRegistrations: MockRegistration[] = [
         sex: Number(data.sex ?? 0),
         status: Number(data.status ?? 0),
         deptId: String(data.deptId ?? ''),
+        roleIds: Array.isArray(data.roleIds) ? data.roleIds.map(String) : [],
+        postIds: Array.isArray(data.postIds) ? data.postIds.map(String) : [],
         isAdmin: false,
         avatar: null,
         createTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
@@ -902,6 +923,8 @@ export const mockRegistrations: MockRegistration[] = [
         sex: data.sex !== undefined ? Number(data.sex) : existing.sex,
         status: data.status !== undefined ? Number(data.status) : existing.status,
         deptId: data.deptId !== undefined ? String(data.deptId) : existing.deptId,
+        roleIds: Array.isArray(data.roleIds) ? data.roleIds.map(String) : existing.roleIds,
+        postIds: Array.isArray(data.postIds) ? data.postIds.map(String) : existing.postIds,
         updateTime: new Date().toISOString().replace('T', ' ').slice(0, 19),
       }
       return { code: 0, message: 'ok', data: null }
@@ -915,6 +938,56 @@ export const mockRegistrations: MockRegistration[] = [
       const idx = MOCK_USERS_LIST.findIndex((u) => u.id === id)
       if (idx === -1) return { code: 0, message: 'ok', data: null }
       MOCK_USERS_LIST.splice(idx, 1)
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+  {
+    method: 'GET',
+    pattern: '/api/system/user/:id/roles',
+    handler: (params) => {
+      const user = MOCK_USERS_LIST.find(
+        (u) => u.id === String((params as Record<string, string>).id),
+      )
+      return user
+        ? { code: 0, message: 'ok', data: [...(user.roleIds ?? [])] }
+        : { code: 404, message: '用户不存在', data: null }
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/system/user/:id/roles',
+    handler: (params, _query, body) => {
+      const user = MOCK_USERS_LIST.find(
+        (u) => u.id === String((params as Record<string, string>).id),
+      )
+      const roleIds = Array.isArray(body) ? body.map(String) : []
+      if (roleIds.includes('1')) return { code: 403, message: '不能绑定 superadmin', data: null }
+      if (!user) return { code: 404, message: '用户不存在', data: null }
+      user.roleIds = roleIds
+      return { code: 0, message: 'ok', data: null }
+    },
+  },
+  {
+    method: 'GET',
+    pattern: '/api/system/user/:id/posts',
+    handler: (params) => {
+      const user = MOCK_USERS_LIST.find(
+        (u) => u.id === String((params as Record<string, string>).id),
+      )
+      return user
+        ? { code: 0, message: 'ok', data: [...(user.postIds ?? [])] }
+        : { code: 404, message: '用户不存在', data: null }
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/system/user/:id/posts',
+    handler: (params, _query, body) => {
+      const user = MOCK_USERS_LIST.find(
+        (u) => u.id === String((params as Record<string, string>).id),
+      )
+      if (!user) return { code: 404, message: '用户不存在', data: null }
+      user.postIds = Array.isArray(body) ? body.map(String) : []
       return { code: 0, message: 'ok', data: null }
     },
   },

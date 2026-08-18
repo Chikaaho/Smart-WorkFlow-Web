@@ -18,9 +18,15 @@ import {
   deleteUser,
   getUserRoles,
   updateUserRoles,
+  getUserPosts,
+  updateUserPosts,
 } from '@/modules/system/api/user'
 import { pageRoles } from '@/modules/system/api/role'
+import { listDeptTree } from '@/modules/system/api/dept'
+import { pagePosts } from '@/modules/system/api/post'
 import type { SysRole } from '@/modules/system/types/role'
+import type { SysDept } from '@/modules/system/types/dept'
+import type { SysPost } from '@/modules/system/types/post'
 import type { SysUser, UserFormRequest, UserFilter } from '@/modules/system/types/user'
 import type { PageQuery } from '@/contracts/common'
 import {
@@ -103,6 +109,9 @@ function handlePageSizeChange(s: number) {
 const isEmpty = computed(() => !loading.value && !errorMsg.value && list.value.length === 0)
 const roleOptions = ref<SysRole[]>([])
 const roleIds = ref<string[]>([])
+const postOptions = ref<SysPost[]>([])
+const postIds = ref<string[]>([])
+const deptOptions = ref<SysDept[]>([])
 
 async function loadRoleOptions() {
   try {
@@ -110,6 +119,17 @@ async function loadRoleOptions() {
     roleOptions.value = result.list
   } catch {
     roleOptions.value = []
+  }
+  try {
+    const result = await pagePosts({ pageNum: 1, pageSize: 200 }, {})
+    postOptions.value = result.list.filter((item) => item.status === undefined || item.status === 1)
+  } catch {
+    postOptions.value = []
+  }
+  try {
+    deptOptions.value = await listDeptTree()
+  } catch {
+    deptOptions.value = []
   }
 }
 
@@ -144,6 +164,7 @@ function resetForm() {
   editingId.value = null
   formError.value = ''
   roleIds.value = []
+  postIds.value = []
 }
 
 function openCreate() {
@@ -165,6 +186,7 @@ async function openEdit(row: SysUser) {
     form.status = detail.status
     form.deptId = detail.deptId ?? ''
     roleIds.value = await getUserRoles(row.id!)
+    postIds.value = await getUserPosts(row.id!)
     // 编辑模式不设置 plainPassword
   } catch {
     formError.value = '加载用户详情失败'
@@ -193,10 +215,12 @@ async function handleSubmit() {
       void _
       await updateUser({ ...updateData, id: editingId.value })
       await updateUserRoles(editingId.value, roleIds.value)
+      await updateUserPosts(editingId.value, postIds.value)
       ElMessage.success('更新成功')
     } else {
       const id = await createUser({ ...form })
       await updateUserRoles(id, roleIds.value)
+      await updateUserPosts(id, postIds.value)
       ElMessage.success('创建成功')
     }
     closeDialog()
@@ -382,7 +406,22 @@ onMounted(loadList)
           </div>
           <div class="form-field">
             <label class="form-field__label">所属部门</label>
-            <el-input v-model="form.deptId" placeholder="请输入部门ID" maxlength="32" />
+            <el-select v-model="form.deptId" placeholder="请选择部门" style="width: 100%">
+              <el-option
+                v-for="dept in deptOptions"
+                :key="dept.id"
+                :label="dept.name"
+                :value="dept.id ?? ''"
+              />
+            </el-select>
+          </div>
+          <div class="form-field">
+            <label class="form-field__label">岗位</label>
+            <el-checkbox-group v-model="postIds">
+              <el-checkbox v-for="post in postOptions" :key="post.id" :value="post.id">{{
+                post.name
+              }}</el-checkbox>
+            </el-checkbox-group>
           </div>
           <div class="form-field">
             <label class="form-field__label">角色</label>
