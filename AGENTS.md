@@ -20,10 +20,10 @@ its role-specific scope, handoff, receipt, and permission rules. A role is
 valid only for the current task/session and must not be carried into a new
 session.
 
-Read `.claude/system.md` in full before changing frontend code, running
+Read `docs/governance/engineering-constitution.md` in full before changing frontend code, running
 frontend commands, or making an implementation decision. It is the canonical
 frontend engineering constitution; this file is only its Codex-compatible
-entry point. Also read `../Smart-WorkFlow-Knowledge/system.md` when the task
+entry point. Also read `../system.md` when the task
 uses the shared role, receipt, knowledge, or workflow rules.
 
 This directory is **frontend executor scope**. Work only on this repository;
